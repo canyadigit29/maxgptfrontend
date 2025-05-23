@@ -14,15 +14,6 @@ export * from "./models"
 export * from "./sharing"
 export * from "./sidebar-data"
 
-
-import { ChatMessage } from "./chat-message"
-import { Assistant } from "./assistant"
-
 export interface ChatPayload {
-  workspaceInstructions: string
-  chatMessages: ChatMessage[]
-  assistant: Assistant | null
-  messageFileItems: any[]
-  chatFileItems: any[]
   project_id: string
 }
