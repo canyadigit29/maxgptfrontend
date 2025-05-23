@@ -6,6 +6,8 @@ const withPWA = require("next-pwa")({
   dest: "public"
 })
 
+const path = require("path")
+
 module.exports = withBundleAnalyzer(
   withPWA({
     reactStrictMode: true,
@@ -27,6 +29,10 @@ module.exports = withBundleAnalyzer(
     },
     experimental: {
       serverComponentsExternalPackages: ["sharp", "onnxruntime-node"]
+    },
+    webpack: (config) => {
+      config.resolve.alias['@'] = path.resolve(__dirname);
+      return config;
     }
   })
-)
+);
