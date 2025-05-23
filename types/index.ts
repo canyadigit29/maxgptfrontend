@@ -19,7 +19,6 @@ import { ChatMessage } from "./chat-message"
 import { Assistant } from "./assistant"
 
 export interface ChatPayload {
-  chatSettings: ChatSettings
   workspaceInstructions: string
   chatMessages: ChatMessage[]
   assistant: Assistant | null
