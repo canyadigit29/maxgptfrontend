@@ -13,17 +13,3 @@ export * from "./llms"
 export * from "./models"
 export * from "./sharing"
 export * from "./sidebar-data"
-
-import { ChatSettings } from "./chat-settings"
-import { ChatMessage } from "./chat-message"
-import { Assistant } from "./assistant"
-
-export interface ChatPayload {
-  chatSettings: ChatSettings
-  workspaceInstructions: string
-  chatMessages: ChatMessage[]
-  assistant: Assistant | null
-  messageFileItems: any[]
-  chatFileItems: any[]
-  project_id: string
-}
