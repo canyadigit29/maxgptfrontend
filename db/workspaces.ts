@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase/browser-client"
-import { TablesInsert, TablesUpdate } from "@/supabase/types"
+import { TablesInsert, TablesUpdate, Tables } from "@/supabase/types"
+import { PostgrestSingleResponse } from "@supabase/supabase-js"
 
 export const getHomeWorkspaceByUserId = async (userId: string) => {
   const { data: homeWorkspace, error } = await supabase
@@ -16,18 +17,14 @@ export const getHomeWorkspaceByUserId = async (userId: string) => {
   return homeWorkspace.id
 }
 
-export const getWorkspaceById = async (workspaceId: string) => {
-  const { data: workspace, error } = await supabase
+export const getWorkspaceById = async (
+  workspaceId: string
+): Promise<PostgrestSingleResponse<Tables<"workspaces">>> => {
+  return await supabase
     .from("workspaces")
     .select("*")
     .eq("id", workspaceId)
     .single()
-
-  if (!workspace) {
-    throw new Error(error.message)
-  }
-
-  return workspace
 }
 
 export const getWorkspacesByUserId = async (userId: string) => {
