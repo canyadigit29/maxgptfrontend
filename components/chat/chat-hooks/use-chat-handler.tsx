@@ -267,13 +267,10 @@ export const useChatHandler = () => {
           : [...chatMessages, tempUserChatMessage],
         assistant: selectedChat?.assistant_id ? selectedAssistant : null,
         messageFileItems: retrievedFileItems,
-        chatFileItems: chatFileItems,
-        project_id: "bd3883ee-c8ea-4d17-b0f2-965a65b512a6"
+        chatFileItems: chatFileItems
       }
 
       let generatedText = ""
-
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || ""
 
       if (selectedTools.length > 0) {
         setToolInUse("Tools")
@@ -284,7 +281,7 @@ export const useChatHandler = () => {
           chatImages
         )
 
-        const response = await fetch(`${backendUrl}/chat/tools`, {
+        const response = await fetch("/api/chat/tools", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
