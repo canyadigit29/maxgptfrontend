@@ -92,6 +92,13 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
     setLoading(true)
 
     const workspace = await getWorkspaceById(workspaceId)
+
+    if ('message' in workspace) {
+      console.error("Failed to fetch workspace:", workspace.message)
+      setLoading(false)
+      return
+    }
+
     setSelectedWorkspace(workspace)
 
     const assistantData = await getAssistantWorkspacesByWorkspaceId(workspaceId)
