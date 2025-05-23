@@ -267,7 +267,8 @@ export const useChatHandler = () => {
           : [...chatMessages, tempUserChatMessage],
         assistant: selectedChat?.assistant_id ? selectedAssistant : null,
         messageFileItems: retrievedFileItems,
-        chatFileItems: chatFileItems
+        chatFileItems: chatFileItems,
+        project_id: "bd3883ee-c8ea-4d17-b0f2-965a65b512a6"
       }
 
       let generatedText = ""
