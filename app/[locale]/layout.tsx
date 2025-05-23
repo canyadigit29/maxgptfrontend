@@ -1,187 +1,107 @@
+import { Toaster } from "@/components/ui/sonner"
+import { GlobalState } from "@/components/utility/global-state"
+import { Providers } from "@/components/utility/providers"
+import TranslationsProvider from "@/components/utility/translations-provider"
+import initTranslations from "@/lib/i18n"
+import { Database } from "@/supabase/types"
+import { createServerClient } from "@supabase/ssr"
+import { Metadata, Viewport } from "next"
+import { Inter } from "next/font/google"
+import { cookies } from "next/headers"
+import { ReactNode } from "react"
+import "./globals.css"
 
-"use client"
+const inter = Inter({ subsets: ["latin"] })
+const APP_NAME = "Chatbot UI"
+const APP_DEFAULT_TITLE = "Chatbot UI"
+const APP_TITLE_TEMPLATE = "%s - Chatbot UI"
+const APP_DESCRIPTION = "Chabot UI PWA!"
 
-import { Dashboard } from "@/components/ui/dashboard"
-import { ChatbotUIContext } from "@/context/context"
-import { getAssistantWorkspacesByWorkspaceId } from "@/db/assistants"
-import { getChatsByWorkspaceId } from "@/db/chats"
-import { getCollectionWorkspacesByWorkspaceId } from "@/db/collections"
-import { getFileWorkspacesByWorkspaceId } from "@/db/files"
-import { getFoldersByWorkspaceId } from "@/db/folders"
-import { getModelWorkspacesByWorkspaceId } from "@/db/models"
-import { getPresetWorkspacesByWorkspaceId } from "@/db/presets"
-import { getPromptWorkspacesByWorkspaceId } from "@/db/prompts"
-import { getAssistantImageFromStorage } from "@/db/storage/assistant-images"
-import { getToolWorkspacesByWorkspaceId } from "@/db/tools"
-import { getWorkspaceById } from "@/db/workspaces"
-import { convertBlobToBase64 } from "@/lib/blob-to-b64"
-import { supabase } from "@/lib/supabase/browser-client"
-import { LLMID } from "@/types"
-import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { ReactNode, useContext, useEffect, useState } from "react"
-import Loading from "../loading"
-
-interface WorkspaceLayoutProps {
+interface RootLayoutProps {
   children: ReactNode
+  params: {
+    locale: string
+  }
 }
 
-export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
-  const router = useRouter()
+export const metadata: Metadata = {
+  applicationName: APP_NAME,
+  title: {
+    default: APP_DEFAULT_TITLE,
+    template: APP_TITLE_TEMPLATE
+  },
+  description: APP_DESCRIPTION,
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black",
+    title: APP_DEFAULT_TITLE
+    // startUpImage: [],
+  },
+  formatDetection: {
+    telephone: false
+  },
+  openGraph: {
+    type: "website",
+    siteName: APP_NAME,
+    title: {
+      default: APP_DEFAULT_TITLE,
+      template: APP_TITLE_TEMPLATE
+    },
+    description: APP_DESCRIPTION
+  },
+  twitter: {
+    card: "summary",
+    title: {
+      default: APP_DEFAULT_TITLE,
+      template: APP_TITLE_TEMPLATE
+    },
+    description: APP_DESCRIPTION
+  }
+}
 
-  const params = useParams()
-  const searchParams = useSearchParams()
-  const workspaceId = params.workspaceid as string
+export const viewport: Viewport = {
+  themeColor: "#000000"
+}
 
-  const {
-    setChatSettings,
-    setAssistants,
-    setAssistantImages,
-    setChats,
-    setCollections,
-    setFolders,
-    setFiles,
-    setPresets,
-    setPrompts,
-    setTools,
-    setModels,
-    selectedWorkspace,
-    setSelectedWorkspace,
-    setSelectedChat,
-    setChatMessages,
-    setUserInput,
-    setIsGenerating,
-    setFirstTokenReceived,
-    setChatFiles,
-    setChatImages,
-    setNewMessageFiles,
-    setNewMessageImages,
-    setShowFilesDisplay
-  } = useContext(ChatbotUIContext)
+const i18nNamespaces = ["translation"]
 
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    ;(async () => {
-      const session = (await supabase.auth.getSession()).data.session
-
-      if (!session) {
-        return router.push("/login")
-      } else {
-        await fetchWorkspaceData(workspaceId)
-      }
-    })()
-  }, [])
-
-  useEffect(() => {
-    ;(async () => await fetchWorkspaceData(workspaceId))()
-
-    setUserInput("")
-    setChatMessages([])
-    setSelectedChat(null)
-
-    setIsGenerating(false)
-    setFirstTokenReceived(false)
-
-    setChatFiles([])
-    setChatImages([])
-    setNewMessageFiles([])
-    setNewMessageImages([])
-    setShowFilesDisplay(false)
-  }, [workspaceId])
-
-  const fetchWorkspaceData = async (workspaceId: string) => {
-    setLoading(true)
-
-    const { data: workspace, error } = await getWorkspaceById(workspaceId)
-    if (workspace) {
-      setSelectedWorkspace(workspace)
-
-      const { data: assistants, error: assistantsError } = await getAssistantWorkspacesByWorkspaceId(workspaceId)
-      if (assistants) {
-        setAssistants(assistants)
-
-        for (const assistant of assistants) {
-          let url = ""
-
-          if (assistant.image_path) {
-            url = (await getAssistantImageFromStorage(assistant.image_path)) || ""
-          }
-
-          if (url) {
-            const response = await fetch(url)
-            const blob = await response.blob()
-            const base64 = await convertBlobToBase64(blob)
-
-            setAssistantImages(prev => [
-              ...prev,
-              {
-                assistantId: assistant.id,
-                path: assistant.image_path,
-                base64,
-                url
-              }
-            ])
-          } else {
-            setAssistantImages(prev => [
-              ...prev,
-              {
-                assistantId: assistant.id,
-                path: assistant.image_path,
-                base64: "",
-                url
-              }
-            ])
-          }
+export default async function RootLayout({
+  children,
+  params: { locale }
+}: RootLayoutProps) {
+  const cookieStore = cookies()
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
         }
-      } else {
-        console.error("Failed to fetch assistants:", assistantsError)
       }
-
-      const chats = await getChatsByWorkspaceId(workspaceId)
-      setChats(chats)
-
-      const collectionData = await getCollectionWorkspacesByWorkspaceId(workspaceId)
-      setCollections(collectionData.collections)
-
-      const folders = await getFoldersByWorkspaceId(workspaceId)
-      setFolders(folders)
-
-      const fileData = await getFileWorkspacesByWorkspaceId(workspaceId)
-      setFiles(fileData.files)
-
-      const presetData = await getPresetWorkspacesByWorkspaceId(workspaceId)
-      setPresets(presetData.presets)
-
-      const promptData = await getPromptWorkspacesByWorkspaceId(workspaceId)
-      setPrompts(promptData.prompts)
-
-      const toolData = await getToolWorkspacesByWorkspaceId(workspaceId)
-      setTools(toolData.tools)
-
-      const modelData = await getModelWorkspacesByWorkspaceId(workspaceId)
-      setModels(modelData.models)
-
-      setChatSettings({
-        model: (searchParams.get("model") ||
-          workspace.default_model ||
-          "gpt-4-1106-preview") as LLMID,
-        prompt: workspace.default_prompt || "You are a friendly, helpful AI assistant.",
-        temperature: workspace.default_temperature || 0.5,
-        contextLength: workspace.default_context_length || 4096,
-        includeProfileContext: workspace.include_profile_context ?? true,
-        includeWorkspaceInstructions: workspace.include_workspace_instructions ?? true,
-        embeddingsProvider: (workspace.embeddings_provider as "openai" | "local") || "openai"
-      })
-    } else {
-      console.error("Failed to fetch workspace:", error)
     }
+  )
+  const session = (await supabase.auth.getSession()).data.session
 
-    setLoading(false)
-  }
+  const { t, resources } = await initTranslations(locale, i18nNamespaces)
 
-  if (loading) {
-    return <Loading />
-  }
-
-  return <Dashboard>{children}</Dashboard>
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <Providers attribute="class" defaultTheme="dark">
+          <TranslationsProvider
+            namespaces={i18nNamespaces}
+            locale={locale}
+            resources={resources}
+          >
+            <Toaster richColors position="top-center" duration={3000} />
+            <div className="bg-background text-foreground flex h-dvh flex-col items-center overflow-x-auto">
+              {session ? <GlobalState>{children}</GlobalState> : children}
+            </div>
+          </TranslationsProvider>
+        </Providers>
+      </body>
+    </html>
+  )
 }
