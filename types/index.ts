@@ -14,7 +14,7 @@ export * from "./models"
 export * from "./sharing"
 export * from "./sidebar-data"
 
-import { ChatSettings } from "./chat-settings"
+
 import { ChatMessage } from "./chat-message"
 import { Assistant } from "./assistant"
 
