@@ -13,7 +13,3 @@ export * from "./llms"
 export * from "./models"
 export * from "./sharing"
 export * from "./sidebar-data"
-
-export interface ChatPayload {
-  project_id: string
-}
