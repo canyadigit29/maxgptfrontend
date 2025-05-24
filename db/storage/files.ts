@@ -1,4 +1,3 @@
-import { supabase } from "@/lib/supabase/browser-client"
 import { toast } from "sonner"
 
 export const uploadFile = async (
@@ -7,6 +6,7 @@ export const uploadFile = async (
     name: string
     user_id: string
     file_id: string
+    project_id: string
   }
 ) => {
   const SIZE_LIMIT = parseInt(
@@ -19,39 +19,30 @@ export const uploadFile = async (
     )
   }
 
-  const filePath = `${payload.user_id}/${Buffer.from(payload.file_id).toString("base64")}`
+  const formData = new FormData()
+  formData.append("file", file)
+  formData.append("project_id", payload.project_id)
 
-  const { error } = await supabase.storage
-    .from("files")
-    .upload(filePath, file, {
-      upsert: true
-    })
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
 
-  if (error) {
-    throw new Error("Error uploading file")
+  const response = await fetch(`${backendUrl}/upload`, {
+    method: "POST",
+    body: formData
+  })
+
+  if (!response.ok) {
+    const result = await response.json()
+    throw new Error(result.detail || "Error uploading file")
   }
 
-  return filePath
+  const result = await response.json()
+  return result.filePath || "uploaded"
 }
 
 export const deleteFileFromStorage = async (filePath: string) => {
-  const { error } = await supabase.storage.from("files").remove([filePath])
-
-  if (error) {
-    toast.error("Failed to remove file!")
-    return
-  }
+  toast.info("Delete from storage is handled by backend.")
 }
 
 export const getFileFromStorage = async (filePath: string) => {
-  const { data, error } = await supabase.storage
-    .from("files")
-    .createSignedUrl(filePath, 60 * 60 * 24) // 24hrs
-
-  if (error) {
-    console.error(`Error uploading file with path: ${filePath}`, error)
-    throw new Error("Error downloading file")
-  }
-
-  return data.signedUrl
+  toast.info("Download from storage is handled by backend.")
 }
