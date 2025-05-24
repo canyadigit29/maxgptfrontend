@@ -46,6 +46,15 @@ export const deleteFileFromStorage = async (filePath: string) => {
   toast.info("Delete from storage is handled by backend.")
 }
 
-export const getFileFromStorage = async (filePath: string) => {
-  toast.info("Download from storage is handled by backend.")
+export const getFileFromStorage = async (filePath: string): Promise<string> => {
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
+  const response = await fetch(`${backendUrl}/download?file_path=${encodeURIComponent(filePath)}`)
+
+  if (!response.ok) {
+    toast.error("Failed to retrieve file URL from backend.")
+    return "#"
+  }
+
+  const data = await response.json()
+  return data.signedUrl
 }
