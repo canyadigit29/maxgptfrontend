@@ -22,6 +22,9 @@ export const uploadFile = async (
   const formData = new FormData()
   formData.append("file", file)
   formData.append("project_id", payload.project_id)
+  formData.append("user_id", payload.user_id)
+  formData.append("file_id", payload.file_id)
+  formData.append("name", payload.name)
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
 
