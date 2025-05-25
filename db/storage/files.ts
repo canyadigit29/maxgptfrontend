@@ -1,316 +1,120 @@
-import { supabase } from "@/lib/supabase/browser-client"
-import { TablesInsert, TablesUpdate } from "@/supabase/types"
-import mammoth from "mammoth"
-import { toast } from "sonner"
-import { uploadFile } from "./storage/files"
 
-export const getFileById = async (fileId: string) => {
-  const { data: file, error } = await supabase
-    .from("files")
-    .select("*")
-    .eq("id", fileId)
-    .single()
+import io
+import uuid
+import zipfile
+from datetime import datetime
 
-  if (!file) {
-    throw new Error(error.message)
-  }
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    Form,
+    HTTPException,
+    UploadFile
+)
 
-  return file
-}
+from app.api.file_ops.ingest import process_file
+from app.core.supabase_client import supabase
 
-export const getFileWorkspacesByWorkspaceId = async (workspaceId: string) => {
-  const { data: workspace, error } = await supabase
-    .from("workspaces")
-    .select(
-      `
-      id,
-      name,
-      files (*)
-    `
-    )
-    .eq("id", workspaceId)
-    .single()
+router = APIRouter()
 
-  if (!workspace) {
-    throw new Error(error.message)
-  }
+@router.post("/upload")
+async def upload_file(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    project_id: str = Form(...),
+    user_id: str = Form(...),
+    file_id: str = Form(...),
+    name: str = Form(...)
+):
+    try:
+        contents = await file.read()
 
-  return workspace
-}
+        project_lookup = (
+            supabase.table("projects")
+            .select("name")
+            .eq("id", project_id)
+            .eq("user_id", user_id)
+            .single()
+            .execute()
+        )
 
-export const getFileWorkspacesByFileId = async (fileId: string) => {
-  const { data: file, error } = await supabase
-    .from("files")
-    .select(
-      `
-      id, 
-      name, 
-      workspaces (*)
-    `
-    )
-    .eq("id", fileId)
-    .single()
+        if not project_lookup.data:
+            raise HTTPException(status_code=404, detail="Invalid project_id")
 
-  if (!file) {
-    throw new Error(error.message)
-  }
+        project_name = project_lookup.data["name"]
+        folder_path = f"{user_id}/{project_name}/"
 
-  return file
-}
+        final_name = name or file.filename
 
-export const createFileBasedOnExtension = async (
-  file: File,
-  fileRecord: TablesInsert<"files">,
-  workspace_id: string,
-  embeddingsProvider: "openai" | "local"
-) => {
-  const fileExtension = file.name.split(".").pop()
+        if final_name.endswith(".zip"):
+            extracted = zipfile.ZipFile(io.BytesIO(contents))
+            ingested_files = []
 
-  if (fileExtension === "docx") {
-    const arrayBuffer = await file.arrayBuffer()
-    const result = await mammoth.extractRawText({
-      arrayBuffer
-    })
+            for name in extracted.namelist():
+                if name.lower().endswith((".pdf", ".docx", ".doc", ".rtf", ".txt", ".odt")):
+                    inner_file = extracted.read(name)
+                    inner_path = f"{folder_path}{name}"
+                    inner_file_id = str(uuid.uuid4())
 
-    return createDocXFile(
-      result.value,
-      file,
-      fileRecord,
-      workspace_id,
-      embeddingsProvider
-    )
-  } else {
-    return createFile(file, fileRecord, workspace_id, embeddingsProvider)
-  }
-}
+                    supabase.storage.from_("maxgptstorage").upload(inner_path, inner_file)
 
-// For non-docx files
-export const createFile = async (
-  file: File,
-  fileRecord: TablesInsert<"files">,
-  workspace_id: string,
-  embeddingsProvider: "openai" | "local"
-) => {
-  let validFilename = fileRecord.name.replace(/[^a-z0-9.]/gi, "_").toLowerCase()
-  const extension = file.name.split(".").pop()
-  const extensionIndex = validFilename.lastIndexOf(".")
-  const baseName = validFilename.substring(0, (extensionIndex < 0) ? undefined : extensionIndex)
-  const maxBaseNameLength = 100 - (extension?.length || 0) - 1
-  if (baseName.length > maxBaseNameLength) {
-    fileRecord.name = baseName.substring(0, maxBaseNameLength) + "." + extension
-  } else {
-    fileRecord.name = baseName + "." + extension
-  }
-  const { data: createdFile, error } = await supabase
-    .from("files")
-    .insert([fileRecord])
-    .select("*")
-    .single()
+                    existing = supabase.table("files").select("id").eq("id", inner_file_id).execute()
+                    if not existing.data:
+                        supabase.table("files").insert(
+                            {
+                                "id": inner_file_id,
+                                "file_path": inner_path,
+                                "file_name": name,
+                                "uploaded_at": datetime.utcnow().isoformat(),
+                                "ingested": False,
+                                "ingested_at": None,
+                                "user_id": user_id,
+                                "project_id": project_id,
+                            }
+                        ).execute()
 
-  if (error) {
-    throw new Error(error.message)
-  }
+                    background_tasks.add_task(
+                        process_file,
+                        file_path=inner_path,
+                        file_id=inner_file_id,
+                        user_id=user_id
+                    )
+                    ingested_files.append(name)
 
-  await createFileWorkspace({
-    user_id: createdFile.user_id,
-    file_id: createdFile.id,
-    workspace_id
-  })
+            return {"status": "success", "ingested_files": ingested_files}
 
-  const filePath = await uploadFile(file, {
-    name: createdFile.name,
-    user_id: createdFile.user_id,
-    file_id: createdFile.name
-  })
+        else:
+            file_path = f"{folder_path}{final_name}"
 
-  await updateFile(createdFile.id, {
-    file_path: filePath
-  })
+            supabase.storage.from_("maxgptstorage").upload(
+                file_path, contents, {"content-type": file.content_type}
+            )
 
-  const formData = new FormData()
-  formData.append("file_id", createdFile.id)
-  formData.append("embeddingsProvider", embeddingsProvider)
+            existing = supabase.table("files").select("id").eq("id", file_id).execute()
+            if not existing.data:
+                supabase.table("files").insert(
+                    {
+                        "id": file_id,
+                        "file_path": file_path,
+                        "file_name": final_name,
+                        "uploaded_at": datetime.utcnow().isoformat(),
+                        "ingested": False,
+                        "ingested_at": None,
+                        "user_id": user_id,
+                        "project_id": project_id,
+                    }
+                ).execute()
 
-  const response = await fetch("/api/retrieval/process", {
-    method: "POST",
-    body: formData
-  })
+            background_tasks.add_task(
+                process_file,
+                file_path=file_path,
+                file_id=file_id,
+                user_id=user_id
+            )
 
-  if (!response.ok) {
-    const jsonText = await response.text()
-    const json = JSON.parse(jsonText)
-    console.error(
-      `Error processing file:${createdFile.id}, status:${response.status}, response:${json.message}`
-    )
-    toast.error("Failed to process file. Reason:" + json.message, {
-      duration: 10000
-    })
-    await deleteFile(createdFile.id)
-  }
+            return {"status": "success", "file_path": file_path}
 
-  const fetchedFile = await getFileById(createdFile.id)
-
-  return fetchedFile
-}
-
-// // Handle docx files
-export const createDocXFile = async (
-  text: string,
-  file: File,
-  fileRecord: TablesInsert<"files">,
-  workspace_id: string,
-  embeddingsProvider: "openai" | "local"
-) => {
-  const { data: createdFile, error } = await supabase
-    .from("files")
-    .insert([fileRecord])
-    .select("*")
-    .single()
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  await createFileWorkspace({
-    user_id: createdFile.user_id,
-    file_id: createdFile.id,
-    workspace_id
-  })
-
-  const filePath = await uploadFile(file, {
-    name: createdFile.name,
-    user_id: createdFile.user_id,
-    file_id: createdFile.name
-  })
-
-  await updateFile(createdFile.id, {
-    file_path: filePath
-  })
-
-  const response = await fetch("/api/retrieval/process/docx", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      text: text,
-      fileId: createdFile.id,
-      embeddingsProvider,
-      fileExtension: "docx"
-    })
-  })
-
-  if (!response.ok) {
-    const jsonText = await response.text()
-    const json = JSON.parse(jsonText)
-    console.error(
-      `Error processing file:${createdFile.id}, status:${response.status}, response:${json.message}`
-    )
-    toast.error("Failed to process file. Reason:" + json.message, {
-      duration: 10000
-    })
-    await deleteFile(createdFile.id)
-  }
-
-  const fetchedFile = await getFileById(createdFile.id)
-
-  return fetchedFile
-}
-
-export const createFiles = async (
-  files: TablesInsert<"files">[],
-  workspace_id: string
-) => {
-  const { data: createdFiles, error } = await supabase
-    .from("files")
-    .insert(files)
-    .select("*")
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  await createFileWorkspaces(
-    createdFiles.map(file => ({
-      user_id: file.user_id,
-      file_id: file.id,
-      workspace_id
-    }))
-  )
-
-  return createdFiles
-}
-
-export const createFileWorkspace = async (item: {
-  user_id: string
-  file_id: string
-  workspace_id: string
-}) => {
-  const { data: createdFileWorkspace, error } = await supabase
-    .from("file_workspaces")
-    .insert([item])
-    .select("*")
-    .single()
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  return createdFileWorkspace
-}
-
-export const createFileWorkspaces = async (
-  items: { user_id: string; file_id: string; workspace_id: string }[]
-) => {
-  const { data: createdFileWorkspaces, error } = await supabase
-    .from("file_workspaces")
-    .insert(items)
-    .select("*")
-
-  if (error) throw new Error(error.message)
-
-  return createdFileWorkspaces
-}
-
-export const updateFile = async (
-  fileId: string,
-  file: TablesUpdate<"files">
-) => {
-  const { data: updatedFile, error } = await supabase
-    .from("files")
-    .update(file)
-    .eq("id", fileId)
-    .select("*")
-    .single()
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  return updatedFile
-}
-
-export const deleteFile = async (fileId: string) => {
-  const { error } = await supabase.from("files").delete().eq("id", fileId)
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  return true
-}
-
-export const deleteFileWorkspace = async (
-  fileId: string,
-  workspaceId: string
-) => {
-  const { error } = await supabase
-    .from("file_workspaces")
-    .delete()
-    .eq("file_id", fileId)
-    .eq("workspace_id", workspaceId)
-
-  if (error) throw new Error(error.message)
-
-  return true
-}
+    except Exception as e:
+        print(f"❌ Upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
