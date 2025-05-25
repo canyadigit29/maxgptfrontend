@@ -1,46 +1,22 @@
-import { supabase } from "../../lib/supabase-client"
-
-export async function uploadFile(
+export const uploadFile = async (
   file: File,
   payload: {
     name: string
     user_id: string
-    type: string
+    file_id: string
     project_id: string
   }
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string }> => {
   try {
-    // ✅ Step 1: Insert a new file row in Supabase and get the generated file_id
-    const { data, error } = await supabase
-      .from("files")
-      .insert([
-        {
-          user_id: payload.user_id,
-          name: payload.name,
-          type: payload.type,
-          file_path: "", // You can leave this blank if it's handled later
-          status: "pending",
-          project_id: payload.project_id,
-        },
-      ])
-      .select("id")
-      .single()
-
-    if (error || !data) {
-      throw new Error("Failed to insert file row: " + error?.message)
-    }
-
-    const file_id = data.id
-
-    // ✅ Step 2: Send file to backend with correct file_id
     const formData = new FormData()
     formData.append("file", file)
-    formData.append("file_id", file_id)
+    formData.append("file_id", payload.file_id)
     formData.append("user_id", payload.user_id)
     formData.append("name", payload.name)
     formData.append("project_id", payload.project_id)
 
-    const response = await fetch(`/upload`, {
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
+    const response = await fetch(`${backendUrl}/upload`, {
       method: "POST",
       body: formData,
     })
@@ -54,4 +30,4 @@ export async function uploadFile(
   } catch (err: any) {
     return { success: false, message: err.message || "Unknown error" }
   }
-}
+} 
