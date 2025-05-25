@@ -25,6 +25,9 @@ export const uploadFile = async (
   formData.append("file_id", payload.file_id)
   formData.append("name", payload.name)
 
+  // 🪵 Log file details for debugging
+  console.log("Uploading file:", file)
+
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
 
   const response = await fetch(`${backendUrl}/upload`, {
