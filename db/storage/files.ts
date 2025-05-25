@@ -1,58 +1,54 @@
-import { toast } from "sonner"
+import { supabase } from "@/lib/supabase-client"
 
-export const uploadFile = async (
+export async function uploadFile(
   file: File,
   payload: {
     name: string
     user_id: string
-    file_id: string
-      }
-) => {
-  const SIZE_LIMIT = parseInt(
-    process.env.NEXT_PUBLIC_USER_FILE_SIZE_LIMIT || "10000000"
-  )
-
-  if (file.size > SIZE_LIMIT) {
-    throw new Error(
-      `File must be less than ${Math.floor(SIZE_LIMIT / 1000000)}MB`
-    )
+    type: string
   }
+): Promise<{ success: boolean; message: string }> {
+  try {
+    // ✅ Step 1: Insert a new file row in Supabase and get the generated file_id
+    const { data, error } = await supabase
+      .from("files")
+      .insert([
+        {
+          user_id: payload.user_id,
+          name: payload.name,
+          type: payload.type,
+          file_path: "", // You can leave this blank if it's handled later
+          status: "pending",
+        },
+      ])
+      .select("id")
+      .single()
 
-  const formData = new FormData()
-  formData.append("file", file)
+    if (error || !data) {
+      throw new Error("Failed to insert file row: " + error?.message)
+    }
+
+    const file_id = data.id
+
+    // ✅ Step 2: Send file to backend with correct file_id
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("file_id", file_id)
     formData.append("user_id", payload.user_id)
-  formData.append("file_id", payload.file_id)
-  formData.append("name", payload.name)
+    formData.append("name", payload.name)
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
+    const response = await fetch(`/upload`, {
+      method: "POST",
+      body: formData,
+    })
 
-  const response = await fetch(`${backendUrl}/upload`, {
-    method: "POST",
-    body: formData
-  })
+    if (!response.ok) {
+      const res = await response.json()
+      throw new Error(res.detail || "Upload failed")
+    }
 
-  if (!response.ok) {
-    const result = await response.json()
-    throw new Error(result.detail || "Error uploading file")
+    return { success: true, message: "Upload complete" }
+  } catch (err: any) {
+    return { success: false, message: err.message || "Unknown error" }
   }
-
-  const result = await response.json()
-  return result.filePath || "uploaded"
-}
-
-export const deleteFileFromStorage = async (filePath: string) => {
-  toast.info("Delete from storage is handled by backend.")
-}
-
-export const getFileFromStorage = async (filePath: string): Promise<string> => {
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
-  const response = await fetch(`${backendUrl}/download?file_path=${encodeURIComponent(filePath)}`)
-
-  if (!response.ok) {
-    toast.error("Failed to retrieve file URL from backend.")
-    return "#"
-  }
-
-  const data = await response.json()
-  return data.signedUrl
 }
