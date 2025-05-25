@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase-client"
+import { supabase } from "../../lib/supabase-client"
 
 export async function uploadFile(
   file: File,
@@ -6,6 +6,7 @@ export async function uploadFile(
     name: string
     user_id: string
     type: string
+    project_id: string
   }
 ): Promise<{ success: boolean; message: string }> {
   try {
@@ -19,6 +20,7 @@ export async function uploadFile(
           type: payload.type,
           file_path: "", // You can leave this blank if it's handled later
           status: "pending",
+          project_id: payload.project_id,
         },
       ])
       .select("id")
@@ -36,6 +38,7 @@ export async function uploadFile(
     formData.append("file_id", file_id)
     formData.append("user_id", payload.user_id)
     formData.append("name", payload.name)
+    formData.append("project_id", payload.project_id)
 
     const response = await fetch(`/upload`, {
       method: "POST",
