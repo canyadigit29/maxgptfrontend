@@ -1,120 +1,41 @@
+    )
+  }
 
-import io
-import uuid
-import zipfile
-from datetime import datetime
+  const formData = new FormData()
+  formData.append("file", file)
+    formData.append("user_id", payload.user_id)
+  formData.append("file_id", payload.file_id)
+  formData.append("name", payload.name)
 
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    File,
-    Form,
-    HTTPException,
-    UploadFile
-)
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
 
-from app.api.file_ops.ingest import process_file
-from app.core.supabase_client import supabase
+  const response = await fetch(`${backendUrl}/upload`, {
+    method: "POST",
+    body: formData
+  })
 
-router = APIRouter()
+  if (!response.ok) {
+    const result = await response.json()
+    throw new Error(result.detail || "Error uploading file")
+  }
 
-@router.post("/upload")
-async def upload_file(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    project_id: str = Form(...),
-    user_id: str = Form(...),
-    file_id: str = Form(...),
-    name: str = Form(...)
-):
-    try:
-        contents = await file.read()
+  const result = await response.json()
+  return result.filePath || "uploaded"
+}
 
-        project_lookup = (
-            supabase.table("projects")
-            .select("name")
-            .eq("id", project_id)
-            .eq("user_id", user_id)
-            .single()
-            .execute()
-        )
+export const deleteFileFromStorage = async (filePath: string) => {
+  toast.info("Delete from storage is handled by backend.")
+}
 
-        if not project_lookup.data:
-            raise HTTPException(status_code=404, detail="Invalid project_id")
+export const getFileFromStorage = async (filePath: string): Promise<string> => {
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
+  const response = await fetch(`${backendUrl}/download?file_path=${encodeURIComponent(filePath)}`)
 
-        project_name = project_lookup.data["name"]
-        folder_path = f"{user_id}/{project_name}/"
+  if (!response.ok) {
+    toast.error("Failed to retrieve file URL from backend.")
+    return "#"
+  }
 
-        final_name = name or file.filename
-
-        if final_name.endswith(".zip"):
-            extracted = zipfile.ZipFile(io.BytesIO(contents))
-            ingested_files = []
-
-            for name in extracted.namelist():
-                if name.lower().endswith((".pdf", ".docx", ".doc", ".rtf", ".txt", ".odt")):
-                    inner_file = extracted.read(name)
-                    inner_path = f"{folder_path}{name}"
-                    inner_file_id = str(uuid.uuid4())
-
-                    supabase.storage.from_("maxgptstorage").upload(inner_path, inner_file)
-
-                    existing = supabase.table("files").select("id").eq("id", inner_file_id).execute()
-                    if not existing.data:
-                        supabase.table("files").insert(
-                            {
-                                "id": inner_file_id,
-                                "file_path": inner_path,
-                                "file_name": name,
-                                "uploaded_at": datetime.utcnow().isoformat(),
-                                "ingested": False,
-                                "ingested_at": None,
-                                "user_id": user_id,
-                                "project_id": project_id,
-                            }
-                        ).execute()
-
-                    background_tasks.add_task(
-                        process_file,
-                        file_path=inner_path,
-                        file_id=inner_file_id,
-                        user_id=user_id
-                    )
-                    ingested_files.append(name)
-
-            return {"status": "success", "ingested_files": ingested_files}
-
-        else:
-            file_path = f"{folder_path}{final_name}"
-
-            supabase.storage.from_("maxgptstorage").upload(
-                file_path, contents, {"content-type": file.content_type}
-            )
-
-            existing = supabase.table("files").select("id").eq("id", file_id).execute()
-            if not existing.data:
-                supabase.table("files").insert(
-                    {
-                        "id": file_id,
-                        "file_path": file_path,
-                        "file_name": final_name,
-                        "uploaded_at": datetime.utcnow().isoformat(),
-                        "ingested": False,
-                        "ingested_at": None,
-                        "user_id": user_id,
-                        "project_id": project_id,
-                    }
-                ).execute()
-
-            background_tasks.add_task(
-                process_file,
-                file_path=file_path,
-                file_id=file_id,
-                user_id=user_id
-            )
-
-            return {"status": "success", "file_path": file_path}
-
-    except Exception as e:
-        print(f"❌ Upload failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+  const data = await response.json()
+  return data.signedUrl
+}
