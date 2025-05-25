@@ -5,8 +5,7 @@ export const uploadFile = async (
   payload: {
     name: string
     user_id: string
-    file_id: string
-      }
+          }
 ) => {
   const SIZE_LIMIT = parseInt(
     process.env.NEXT_PUBLIC_USER_FILE_SIZE_LIMIT || "10000000"
@@ -21,8 +20,7 @@ export const uploadFile = async (
   const formData = new FormData()
   formData.append("file", file)
     formData.append("user_id", payload.user_id)
-  formData.append("file_id", payload.file_id)
-  formData.append("name", payload.name)
+    formData.append("name", payload.name)
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
 
