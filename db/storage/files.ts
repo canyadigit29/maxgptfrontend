@@ -1,4 +1,11 @@
 import { toast } from "sonner"
+import { createClient } from "@supabase/supabase-js"
+import { Database } from "@/types_db"
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
 
 export const uploadFile = async (
   file: File,
@@ -30,6 +37,22 @@ export const uploadFile = async (
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
 
+  // 📝 Construct file path and insert into files table
+  const filePath = `${payload.user_id}/${payload.project_id || "Uploads"}/${file.name}`
+
+  const { error } = await supabase.from("files").insert({
+    name: payload.name,
+    user_id: payload.user_id,
+    file_id: payload.file_id,
+    file_path: filePath
+  })
+
+  if (error) {
+    console.error("Error writing to files table:", error)
+    toast.error("Failed to register file metadata")
+    throw error
+  }
+
   const response = await fetch(`${backendUrl}/upload`, {
     method: "POST",
     body: formData
@@ -40,10 +63,7 @@ export const uploadFile = async (
     throw new Error(result.detail || "Error uploading file")
   }
 
-  // 💾 Construct the expected file path (simulated upload path)
-  const filePath = `${payload.user_id}/${payload.project_id || "Uploads"}/${file.name}`
   console.log("Simulated file path:", filePath)
-
   const result = await response.json()
   return result.filePath || "uploaded"
 }
