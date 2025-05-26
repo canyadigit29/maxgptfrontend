@@ -38,19 +38,17 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
   return (
     <SidebarCreateItem
       contentType="files"
-      createState={() => {
-        const metadata = description.trim() ? { description, file_type: description } : {}
-        return {
-          file: selectedFile,
-          user_id: profile.user_id,
-          name,
-          ...metadata,
-          file_path: "",
-          size: selectedFile?.size || 0,
-          tokens: 0,
-          type: selectedFile?.type || 0
-        } as TablesInsert<"files">
-      }}
+      createState={{
+        file: selectedFile,
+        user_id: profile.user_id,
+        name,
+        description,
+        file_type: description, // ✅ ONLY ADDITION
+        file_path: "",
+        size: selectedFile?.size || 0,
+        tokens: 0,
+        type: selectedFile?.type || 0
+      } as TablesInsert<"files">}
       isOpen={isOpen}
       isTyping={isTyping}
       onOpenChange={onOpenChange}
