@@ -6,6 +6,7 @@ import { ChatbotUIContext } from "@/context/context"
 import { FILE_DESCRIPTION_MAX, FILE_NAME_MAX } from "@/db/limits"
 import { TablesInsert } from "@/supabase/types"
 import { FC, useContext, useState } from "react"
+import { toast } from "@/components/ui/use-toast"
 
 interface CreateFileProps {
   isOpen: boolean
