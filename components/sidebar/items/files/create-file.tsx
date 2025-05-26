@@ -16,8 +16,8 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
   const { profile, selectedWorkspace } = useContext(ChatbotUIContext)
 
   const [name, setName] = useState("")
-  const [isTyping, setIsTyping] = useState(false)
   const [description, setDescription] = useState("")
+  const [isTyping, setIsTyping] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   const handleSelectedFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -38,18 +38,19 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
   return (
     <SidebarCreateItem
       contentType="files"
-      createState={
-        {
+      createState={() => {
+        const metadata = description.trim() ? { description, file_type: description } : {}
+        return {
           file: selectedFile,
           user_id: profile.user_id,
           name,
-          description,
+          ...metadata,
           file_path: "",
           size: selectedFile?.size || 0,
           tokens: 0,
           type: selectedFile?.type || 0
         } as TablesInsert<"files">
-      }
+      }}
       isOpen={isOpen}
       isTyping={isTyping}
       onOpenChange={onOpenChange}
@@ -80,8 +81,8 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
             <Label>Description</Label>
 
             <Input
-              placeholder="File description..."
-              value={name}
+              placeholder="Optional description..."
+              value={description}
               onChange={e => setDescription(e.target.value)}
               maxLength={FILE_DESCRIPTION_MAX}
             />
