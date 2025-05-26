@@ -81,7 +81,7 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
 
             <Input
               placeholder="File description..."
-              value={description}
+              value={name}
               onChange={e => setDescription(e.target.value)}
               maxLength={FILE_DESCRIPTION_MAX}
             />
