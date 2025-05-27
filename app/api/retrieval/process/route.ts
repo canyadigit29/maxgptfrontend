@@ -14,6 +14,8 @@ import { NextResponse } from "next/server"
 import OpenAI from "openai"
 
 export async function POST(req: Request) {
+  console.log("[🟢] /api/retrieval/process called");
+
   try {
     const supabaseAdmin = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
