@@ -20,15 +20,20 @@ export default function ChatPage() {
 
   const { chatMessages } = useContext(ChatbotUIContext)
 
-  const { chatMessages, setChatMessages } = useContext(ChatbotUIContext)
 
   const { handleNewChat, handleFocusChatInput } = useChatHandler({
     onResponse: (text) => {
-      setChatMessages(prev => [...prev, {
+      console.log("[MaxGPT] 🧠 onResponse triggered with text:", text);
+
+      setChatMessages(prev => {
+        const updated = [...prev, {
         role: "assistant",
         content: text,
         timestamp: new Date().toISOString()
-      }])
+      }];
+        console.log("[MaxGPT] ✅ Assistant message injected:", updated[updated.length - 1]);
+        return updated;
+      })
     }
   })
 
