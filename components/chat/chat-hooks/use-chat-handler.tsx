@@ -10,6 +10,44 @@ import { Tables } from "@/supabase/types"
 import { ChatMessage, ChatPayload, LLMID, ModelProvider } from "@/types"
 import { useRouter } from "next/navigation"
 import { useContext, useEffect, useRef } from "react"
+
+import { encode } from "gpt-tokenizer"
+
+let pendingSearchQuery: string | null = null;
+
+const parseFilterReply = (reply: string) => {
+  const filters: Record<string, string> = {};
+  const lower = reply.toLowerCase();
+
+  if (lower.includes("file name")) {
+    const match = /file name\s+([\w\s.-]+)/i.exec(reply);
+    if (match) filters.file_name_filter = match[1].trim();
+  }
+
+  if (lower.includes("collection")) {
+    const match = /collection\s+([\w\s,.-]+)/i.exec(reply);
+    if (match) filters.collection_filter = match[1].trim();
+  }
+
+  if (lower.includes("description")) {
+    const match = /description\s+([\w\s.-]+)/i.exec(reply);
+    if (match) filters.description_filter = match[1].trim();
+  }
+
+  if (lower.includes("date")) {
+    const match = /date\s+([\w\s–-]+)/i.exec(reply);
+    if (match) {
+      const range = match[1].split(/–|-/).map(s => s.trim());
+      if (range.length === 2) {
+        filters.start_date = range[0];
+        filters.end_date = range[1];
+      }
+    }
+  }
+
+  return filters;
+};
+
 import { LLM_LIST } from "../../../lib/models/llm/llm-list"
 import {
   createTempMessages,
@@ -22,8 +60,72 @@ import {
   validateChatSettings
 } from "../chat-helpers"
 
+
+// 🧠 Step 1: Detect document search intent
+const SEARCH_INTENT_REGEX = /(search|look|find).*\b(files|documents|notes)\b/i;
+
+const detectSearchIntent = (prompt: string): string | null => {
+  const match = SEARCH_INTENT_REGEX.exec(prompt);
+  if (!match) return null;
+
+  // Try to extract everything after the trigger phrase
+  const triggerIndex = match.index + match[0].length;
+  return prompt.slice(triggerIndex).trim() || null;
+};
+
+
 export const useChatHandler = () => {
   const router = useRouter()
+
+
+  // 🔄 If we have a pending search query and user just replied
+  if (pendingSearchQuery) {
+    const filters = userInput.toLowerCase().includes("no filters")
+      ? {}
+      : parseFilterReply(userInput);
+
+    const response = await fetch("/api/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        embedding: [], // ← you’ll fill this with your real embedding logic
+        ...filters
+      })
+    });
+
+    const data = await response.json();
+    const topResults = data.results?.slice(0, 3) || [];
+
+    // Inject top 3 chunks into prompt invisibly
+    const contextBlock = topResults.map((r, i) => `📄 Result ${i + 1}: ${r.content}`).join("\n\n");
+
+    chatSettings.prompt = contextBlock + "\n\n" + chatSettings.prompt;
+    pendingSearchQuery = null;
+    return; // Skip regular OpenAI call
+  }
+
+
+
+  // 🛑 Intercept and handle document search intent
+  const searchQuery = detectSearchIntent(userInput);
+  if (searchQuery) {
+    console.log("🧠 Document search intent detected:", searchQuery);
+    setIsGenerating(false);
+    setUserInput("");
+
+    const filterPrompt: ChatMessage = {
+      role: "assistant",
+      content: "🔎 It looks like you want to search your documents for: '" + searchQuery + "'.\n" +
+               "Would you like to filter this search by file name, collection, description, or date range?\n" +
+               "Reply like: `file name Finance, date Jan–Mar 2023` — or say `no filters` to skip.",
+      id: Date.now().toString()
+    };
+
+    setChatMessages((prev) => [...prev, filterPrompt]);
+    // Store searchQuery somewhere in context or state for use in next step
+    return;
+  }
+
 
   const {
     userInput,
