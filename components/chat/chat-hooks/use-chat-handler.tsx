@@ -78,7 +78,7 @@ export const useChatHandler = () => {
   const router = useRouter()
 
 
-  // 🔄 If we have a pending search query and user just replied
+  
   if (pendingSearchQuery) {
     const filters = userInput.toLowerCase().includes("no filters")
       ? {}
@@ -99,8 +99,8 @@ export const useChatHandler = () => {
     // Inject top 3 chunks into prompt invisibly
     const contextBlock = topResults.map((r, i) => `📄 Result ${i + 1}: ${r.content}`).join("\n\n");
 
-    chatSettings.prompt = contextBlock + "\n\n" + chatSettings.prompt;
-    pendingSearchQuery = null;
+          body: JSON.stringify({
+            embedding: [], // ← you’ll fill this with your real embedding logic
     return; // Skip regular OpenAI call
   }
 
