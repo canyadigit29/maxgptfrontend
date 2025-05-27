@@ -79,6 +79,33 @@ export const useChatHandler = () => {
 
 
   
+if (pendingSearchQuery) {
+  handlePendingSearch(userInput);
+  return;
+}
+
+const handlePendingSearch = async (userInput: string) => {
+  const filters = userInput.toLowerCase().includes("no filters")
+    ? {}
+    : parseFilterReply(userInput);
+
+  const response = await fetch("/api/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      embedding: [], // ← you’ll fill this with your real embedding logic
+      ...filters
+    })
+  });
+
+  const data = await response.json();
+  const topResults = data.results?.slice(0, 3) || [];
+
+  const contextBlock = topResults.map((r, i) => `📄 Result ${i + 1}: ${r.content}`).join("\n\n");
+  chatSettings.prompt = contextBlock + "\n\n" + chatSettings.prompt;
+  pendingSearchQuery = null;
+};
+
   if (pendingSearchQuery) {
     const filters = userInput.toLowerCase().includes("no filters")
       ? {}
@@ -99,8 +126,8 @@ export const useChatHandler = () => {
     // Inject top 3 chunks into prompt invisibly
     const contextBlock = topResults.map((r, i) => `📄 Result ${i + 1}: ${r.content}`).join("\n\n");
 
-          body: JSON.stringify({
-            embedding: [], // ← you’ll fill this with your real embedding logic
+    chatSettings.prompt = contextBlock + "\n\n" + chatSettings.prompt;
+    pendingSearchQuery = null;
     return; // Skip regular OpenAI call
   }
 
