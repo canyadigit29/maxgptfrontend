@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase/browser-client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 import mammoth from "mammoth"
@@ -95,7 +94,7 @@ export const createFile = async (
   let validFilename = fileRecord.name.replace(/[^a-z0-9.]/gi, "_").toLowerCase()
   const extension = file.name.split(".").pop()
   const extensionIndex = validFilename.lastIndexOf(".")
-  const baseName = validFilename.substring(0, extensionIndex < 0 ? undefined : extensionIndex)
+  const baseName = validFilename.substring(0, (extensionIndex < 0) ? undefined : extensionIndex)
   const maxBaseNameLength = 100 - (extension?.length || 0) - 1
   if (baseName.length > maxBaseNameLength) {
     fileRecord.name = baseName.substring(0, maxBaseNameLength) + "." + extension
@@ -148,12 +147,6 @@ export const createFile = async (
     })
     await deleteFile(createdFile.id)
   }
-
-  console.log("🔥 Upload complete. Calling run-ingestion...");
-await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/run-ingestion`, {
-  method: "POST"
-}).catch(err => console.error("❌ Ingestion call failed", err));
-console.log("✅ Ingestion triggered");
 
   const fetchedFile = await getFileById(createdFile.id)
 
@@ -218,12 +211,6 @@ export const createDocXFile = async (
     })
     await deleteFile(createdFile.id)
   }
-
-  console.log("🔥 Upload complete. Calling run-ingestion...");
-await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/run-ingestion`, {
-  method: "POST"
-}).catch(err => console.error("❌ Ingestion call failed", err));
-console.log("✅ Ingestion triggered");
 
   const fetchedFile = await getFileById(createdFile.id)
 

@@ -175,19 +175,3 @@ export const deletePromptWorkspace = async (
 
   return true
 }
-
-// ==========================================================================
-// ——— New function added below ———
-// ==========================================================================
-
-export const getPromptByName = async (name: string) => {
-  const { data, error } = await supabase
-    .from("prompts")
-    .select("*")
-    .eq("name", name)
-    .eq("sharing", "public")
-    .maybeSingle();
-
-  if (error) throw error;
-  return data;
-};
