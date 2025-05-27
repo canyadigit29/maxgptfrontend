@@ -46,7 +46,6 @@ const parseFilterReply = (reply: string) => {
   }
 
   return filters;
-};
 
 // 🔁 Handle pending search after filter prompt
 const maybeTriggerDocumentSearch = async (
@@ -74,14 +73,11 @@ const maybeTriggerDocumentSearch = async (
 
     const data = await res.json();
     const embeddings = data.matches || [];
-    pendingSearchQuery = null;
     return embeddings;
   } catch (err) {
     console.error('Search failed:', err);
-    pendingSearchQuery = null;
     return [];
   }
-};
 
 import { LLM_LIST } from "../../../lib/models/llm/llm-list"
 import {
@@ -106,7 +102,6 @@ const detectSearchIntent = (prompt: string): string | null => {
   // Try to extract everything after the trigger phrase
   const triggerIndex = match.index + match[0].length;
   return prompt.slice(triggerIndex).trim() || null;
-};
 
 
 
@@ -118,11 +113,9 @@ const detectSearchIntent = (prompt: string): string | null => {
         const contextBlock = searchResults.map((r, i) => `📄 Result ${i + 1}: ${r.content}`).join("\n\n");
         chatSettings.prompt = contextBlock + "\n\n" + chatSettings.prompt;
       }
-      pendingSearchQuery = null;
       return true; // Indicate search injection happened
     }
     return false; // No search action taken
-  };
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -148,10 +141,7 @@ export const useChatHandler = () => {
   const data = await response.json();
   const topResults = data.results?.slice(0, 3) || [];
 
-  const contextBlock = topResults.map((r, i) => `📄 Result ${i + 1}: ${r.content}`).join("\n\n");
   chatSettings.prompt = contextBlock + "\n\n" + chatSettings.prompt;
-  pendingSearchQuery = null;
-};
 
     const filters = userInput.toLowerCase().includes("no filters")
       ? {}
@@ -170,10 +160,8 @@ export const useChatHandler = () => {
     const topResults = data.results?.slice(0, 3) || [];
 
     // Inject top 3 chunks into prompt invisibly
-    const contextBlock = topResults.map((r, i) => `📄 Result ${i + 1}: ${r.content}`).join("\n\n");
 
     chatSettings.prompt = contextBlock + "\n\n" + chatSettings.prompt;
-    pendingSearchQuery = null;
     return; // Skip regular OpenAI call
   }
 
@@ -192,7 +180,6 @@ export const useChatHandler = () => {
                "Would you like to filter this search by file name, collection, description, or date range?\n" +
                "Reply like: `file name Finance, date Jan–Mar 2023` — or say `no filters` to skip.",
       id: Date.now().toString()
-    };
 
     setChatMessages((prev) => [...prev, filterPrompt]);
     // Store searchQuery somewhere in context or state for use in next step
