@@ -156,15 +156,25 @@ export async function POST(req: Request) {
           : null
     }))
 
-    await supabaseAdmin.from("file_items").upsert(file_items)
+    const { error: insertError } = await supabaseAdmin.from("file_items").upsert(file_items)
+    if (insertError) {
+      console.error("[❌] Supabase insert error:", insertError.message)
+      throw insertError
+    }
+
     console.log("[✅] Inserted", file_items.length, "chunks into file_items");
 
     const totalTokens = file_items.reduce((acc, item) => acc + item.tokens, 0)
 
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from("files")
       .update({ tokens: totalTokens })
       .eq("id", file_id)
+
+    if (updateError) {
+      console.error("[❌] Failed to update tokens in files table:", updateError.message)
+      throw updateError
+    }
 
     return new NextResponse("Embed Successful", {
       status: 200
