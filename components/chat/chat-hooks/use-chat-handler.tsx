@@ -48,6 +48,41 @@ const parseFilterReply = (reply: string) => {
   return filters;
 };
 
+// 🔁 Handle pending search after filter prompt
+const maybeTriggerDocumentSearch = async (
+  reply: string,
+  chatSettings: any
+): Promise<any[]> => {
+  if (!pendingSearchQuery) return [];
+
+  const filters = parseFilterReply(reply);
+
+  try {
+    const res = await fetch('/api/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: pendingSearchQuery,
+        ...filters
+      })
+    });
+
+    if (!res.ok) {
+      console.error('Search API error:', await res.text());
+      return [];
+    }
+
+    const data = await res.json();
+    const embeddings = data.matches || [];
+    pendingSearchQuery = null;
+    return embeddings;
+  } catch (err) {
+    console.error('Search failed:', err);
+    pendingSearchQuery = null;
+    return [];
+  }
+};
+
 import { LLM_LIST } from "../../../lib/models/llm/llm-list"
 import {
   createTempMessages,
@@ -74,17 +109,29 @@ const detectSearchIntent = (prompt: string): string | null => {
 };
 
 
+
+  const handleUserInput = async (userInput: string, chatSettings: any) => {
+    // Handle document search flow if pendingSearchQuery is set
+    if (pendingSearchQuery) {
+      const searchResults = await maybeTriggerDocumentSearch(userInput, chatSettings);
+      if (searchResults.length > 0) {
+        const contextBlock = searchResults.map((r, i) => `📄 Result ${i + 1}: ${r.content}`).join("\n\n");
+        chatSettings.prompt = contextBlock + "\n\n" + chatSettings.prompt;
+      }
+      pendingSearchQuery = null;
+      return true; // Indicate search injection happened
+    }
+    return false; // No search action taken
+  };
+
 export const useChatHandler = () => {
   const router = useRouter()
 
 
   
-if (pendingSearchQuery) {
-  handlePendingSearch(userInput);
   return;
 }
 
-const handlePendingSearch = async (userInput: string) => {
   const filters = userInput.toLowerCase().includes("no filters")
     ? {}
     : parseFilterReply(userInput);
@@ -106,7 +153,6 @@ const handlePendingSearch = async (userInput: string) => {
   pendingSearchQuery = null;
 };
 
-  if (pendingSearchQuery) {
     const filters = userInput.toLowerCase().includes("no filters")
       ? {}
       : parseFilterReply(userInput);
