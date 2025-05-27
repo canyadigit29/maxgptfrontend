@@ -18,9 +18,9 @@ export default function ChatPage() {
     handleFocusChatInput()
   })
 
-  const { chatMessages, setChatMessages } = useContext(ChatbotUIContext)
+  const { chatMessages } = useContext(ChatbotUIContext)
 
-  const { handleNewChat, handleFocusChatInput } = useChatHandler({ onResponse: () => {} })
+  const { handleNewChat, handleFocusChatInput } = useChatHandler()
 
   const { theme } = useTheme()
 
