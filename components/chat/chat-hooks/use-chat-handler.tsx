@@ -72,5 +72,7 @@ export function useChatHandler({
   return {
     handleUserMessage,
     setFilters,
+    handleNewChat: () => {},
+    handleFocusChatInput: () => {},
   };
 }
