@@ -21,6 +21,7 @@ import {
   processResponse,
   validateChatSettings
 } from "../chat-helpers"
+import { getPromptByName } from "@/db/prompts";
 
 export const useChatHandler = () => {
   const router = useRouter()
