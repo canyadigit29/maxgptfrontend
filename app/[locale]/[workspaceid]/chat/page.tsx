@@ -18,7 +18,7 @@ export default function ChatPage() {
     handleFocusChatInput()
   })
 
-  const { chatMessages } = useContext(ChatbotUIContext)
+  const { chatMessages, setChatMessages } = useContext(ChatbotUIContext)
 
 
   const { handleNewChat, handleFocusChatInput } = useChatHandler({
