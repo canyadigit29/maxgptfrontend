@@ -2,6 +2,8 @@
 
 import { ChatHelp } from "@/components/chat/chat-help"
 import { useChatHandler } from "@/components/chat/chat-hooks/use-chat-handler"
+import { injectAssistantMessage } from "@/components/chat/chat-hooks/chat-helpers"
+
 import { ChatInput } from "@/components/chat/chat-input"
 import { ChatSettings } from "@/components/chat/chat-settings"
 import { ChatUI } from "@/components/chat/chat-ui"
@@ -21,20 +23,7 @@ export default function ChatPage() {
   const { chatMessages, setChatMessages } = useContext(ChatbotUIContext)
 
 
-  const { handleNewChat, handleFocusChatInput } = useChatHandler({
-    onResponse: (text) => {
-      console.log("[MaxGPT] 🧠 onResponse triggered with text:", text);
-
-      setChatMessages((prev) => {
-        const updated = [
-          ...prev,
-          {
-            role: "assistant",
-            content: text,
-            timestamp: new Date().toISOString(),
-            message: text,
-            fileItems: []
-          }
+  
         ];
         console.log("[MaxGPT] ✅ Assistant message injected:", updated[updated.length - 1]);
         return updated;
