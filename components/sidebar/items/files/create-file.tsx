@@ -36,6 +36,17 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
   if (!profile) return null
   if (!selectedWorkspace) return null
 
+  const dateRegex = /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-(\d{4})$/;
+  const isValidDate = relevantDate === "" || dateRegex.test(relevantDate);
+  if (!isValidDate) {
+    toast({
+      variant: "destructive",
+      title: "Invalid Date Format",
+      description: "Please enter the date as MM-DD-YYYY (e.g. 06-01-2025)."
+    });
+    return null;
+  }
+
   
   const handleCreate = (fileRecord: TablesInsert<"files">) => {
     const dateRegex = /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-(\d{4})$/;
@@ -56,17 +67,7 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
   return (
     <SidebarCreateItem
       contentType="files"
-            createState={() => {
-        const dateRegex = /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-(\d{4})$/;
-        if (relevantDate && !dateRegex.test(relevantDate)) {
-          toast({
-            variant: "destructive",
-            title: "Invalid Date Format",
-            description: "Please enter the date as MM-DD-YYYY (e.g. 06-01-2025)."
-          });
-          return {};
-        }
-        return {
+            createState={
         {
           file: selectedFile,
           user_id: profile.user_id,
@@ -77,7 +78,7 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
           size: selectedFile?.size || 0,
           tokens: 0,
           type: selectedFile?.type || 0
-        }} as TablesInsert<"files">
+        } as TablesInsert<"files">
       }
       isOpen={isOpen}
       isTyping={isTyping}
