@@ -77,6 +77,8 @@ export async function POST(req: Request) {
 
     let chunks: FileItemChunk[] = []
 
+    console.log("[🔪] Chunking file as", fileExtension);
+
     switch (fileExtension) {
       case "csv":
         chunks = await processCSV(blob)
@@ -117,6 +119,7 @@ export async function POST(req: Request) {
     }
 
     if (embeddingsProvider === "openai") {
+      console.log("[🧠] Starting OpenAI embedding for", chunks.length, "chunks");
       const response = await openai.embeddings.create({
         model: "text-embedding-3-small",
         input: chunks.map(chunk => chunk.content)
@@ -154,6 +157,7 @@ export async function POST(req: Request) {
     }))
 
     await supabaseAdmin.from("file_items").upsert(file_items)
+    console.log("[✅] Inserted", file_items.length, "chunks into file_items");
 
     const totalTokens = file_items.reduce((acc, item) => acc + item.tokens, 0)
 
@@ -166,6 +170,7 @@ export async function POST(req: Request) {
       status: 200
     })
   } catch (error: any) {
+    console.error("[❌] Error in /api/retrieval/process:", error.message)
     console.log(`Error in retrieval/process: ${error.stack}`)
     const errorMessage = error?.message || "An unexpected error occurred"
     const errorCode = error.status || 500
