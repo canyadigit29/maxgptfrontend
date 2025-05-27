@@ -20,7 +20,7 @@ export default function ChatPage() {
 
   const { chatMessages } = useContext(ChatbotUIContext)
 
-  const { handleNewChat, handleFocusChatInput } = useChatHandler()
+  const { handleNewChat, handleFocusChatInput } = useChatHandler({ onResponse: () => {} })
 
   const { theme } = useTheme()
 
