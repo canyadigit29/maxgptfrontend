@@ -23,9 +23,7 @@ export async function POST(req: Request) {
     )
 
     const profile = await getServerProfile()
-
     const formData = await req.formData()
-
     const file_id = formData.get("file_id") as string
     const embeddingsProvider = formData.get("embeddingsProvider") as string
 
@@ -48,6 +46,8 @@ export async function POST(req: Request) {
     if (fileMetadata.user_id !== profile.user_id) {
       throw new Error("Unauthorized")
     }
+
+    console.log("[📁] Downloading file from Supabase:", fileMetadata.file_path);
 
     const { data: file, error: fileError } = await supabaseAdmin.storage
       .from("files")
@@ -131,7 +131,6 @@ export async function POST(req: Request) {
           return await generateLocalEmbedding(chunk.content)
         } catch (error) {
           console.error(`Error generating embedding for chunk: ${chunk}`, error)
-
           return null
         }
       })
