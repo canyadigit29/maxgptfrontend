@@ -18,7 +18,7 @@ export default function ChatPage() {
     handleFocusChatInput()
   })
 
-  const { chatMessages, setChatMessages } = useContext(ChatbotUIContext)
+  const { chatMessages } = useContext(ChatbotUIContext)
 
 
   const { handleNewChat, handleFocusChatInput } = useChatHandler({
@@ -27,6 +27,12 @@ export default function ChatPage() {
 
       setChatMessages(prev => {
         const updated = [...prev, {
+          role: "assistant",
+          content: text,
+          timestamp: new Date().toISOString(),
+          message: text,
+          fileItems: []
+        }
         role: "assistant",
         content: text,
         timestamp: new Date().toISOString()
