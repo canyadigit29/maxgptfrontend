@@ -20,7 +20,17 @@ export default function ChatPage() {
 
   const { chatMessages } = useContext(ChatbotUIContext)
 
-  const { handleNewChat, handleFocusChatInput } = useChatHandler()
+  const { addMessage } = useContext(ChatbotUIContext)
+
+  const { handleNewChat, handleFocusChatInput } = useChatHandler({
+    onResponse: (text) => {
+      addMessage({
+        role: "assistant",
+        content: text,
+        timestamp: new Date().toISOString()
+      });
+    }
+  })
 
   const { theme } = useTheme()
 
