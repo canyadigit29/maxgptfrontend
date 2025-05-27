@@ -3,9 +3,8 @@ import { useEffect, useState } from "react";
 import { handleRetrieval } from "./chat-helpers";
 import { getEmbedding } from "@/lib/embedding";
 import { createClient } from "@supabase/supabase-js";
-import { Database } from "@/types/supabase";
 
-const supabase = createClient<Database>(
+const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
@@ -72,7 +71,19 @@ export function useChatHandler({
   return {
     handleUserMessage,
     setFilters,
-    handleNewChat: () => {},
-    handleFocusChatInput: () => {},
+    handleNewChat: async () => {
+      if (!selectedWorkspace) return;
+
+      setUserInput("");
+      setChatMessages([]);
+      setSelectedChat(null);
+      setChatFileItems([]);
+
+      setIsGenerating(false);
+      setFirstTokenReceived(false);
+    },
+    handleFocusChatInput: () => {
+      chatInputRef.current?.focus();
+    },
   };
 }
