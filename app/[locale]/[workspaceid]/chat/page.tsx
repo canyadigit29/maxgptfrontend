@@ -20,15 +20,15 @@ export default function ChatPage() {
 
   const { chatMessages } = useContext(ChatbotUIContext)
 
-  const { addMessage } = useContext(ChatbotUIContext)
+  const { chatMessages, setChatMessages } = useContext(ChatbotUIContext)
 
   const { handleNewChat, handleFocusChatInput } = useChatHandler({
     onResponse: (text) => {
-      addMessage({
+      setChatMessages(prev => [...prev, {
         role: "assistant",
         content: text,
         timestamp: new Date().toISOString()
-      });
+      }])
     }
   })
 
