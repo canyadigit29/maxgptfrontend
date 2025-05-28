@@ -1,17 +1,14 @@
-import { pipeline } from "@xenova/transformers"
+import OpenAI from "openai";
 
-export async function generateLocalEmbedding(content: string) {
-  const generateEmbedding = await pipeline(
-    "feature-extraction",
-    "Xenova/all-MiniLM-L6-v2"
-  )
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
-  const output = await generateEmbedding(content, {
-    pooling: "mean",
-    normalize: true
-  })
+export async function generateLocalEmbedding(text: string) {
+  const response = await openai.embeddings.create({
+    model: "text-embedding-3-small",
+    input: text
+  });
 
-  const embedding = Array.from(output.data)
-
-  return embedding
+  return response.data[0].embedding;
 }
