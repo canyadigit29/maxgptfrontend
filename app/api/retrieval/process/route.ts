@@ -14,8 +14,6 @@ import { NextResponse } from "next/server"
 import OpenAI from "openai"
 
 export async function POST(req: Request) {
-  console.log("[🟢] /api/retrieval/process called");
-
   try {
     const supabaseAdmin = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,7 +21,9 @@ export async function POST(req: Request) {
     )
 
     const profile = await getServerProfile()
+
     const formData = await req.formData()
+
     const file_id = formData.get("file_id") as string
     const embeddingsProvider = formData.get("embeddingsProvider") as string
 
@@ -46,8 +46,6 @@ export async function POST(req: Request) {
     if (fileMetadata.user_id !== profile.user_id) {
       throw new Error("Unauthorized")
     }
-
-    console.log("[📁] Downloading file from Supabase:", fileMetadata.file_path);
 
     const { data: file, error: fileError } = await supabaseAdmin.storage
       .from("files")
@@ -76,8 +74,6 @@ export async function POST(req: Request) {
     }
 
     let chunks: FileItemChunk[] = []
-
-    console.log("[🔪] Chunking file as", fileExtension);
 
     switch (fileExtension) {
       case "csv":
@@ -119,7 +115,6 @@ export async function POST(req: Request) {
     }
 
     if (embeddingsProvider === "openai") {
-      console.log("[🧠] Starting OpenAI embedding for", chunks.length, "chunks");
       const response = await openai.embeddings.create({
         model: "text-embedding-3-small",
         input: chunks.map(chunk => chunk.content)
@@ -134,6 +129,7 @@ export async function POST(req: Request) {
           return await generateLocalEmbedding(chunk.content)
         } catch (error) {
           console.error(`Error generating embedding for chunk: ${chunk}`, error)
+
           return null
         }
       })
@@ -156,31 +152,19 @@ export async function POST(req: Request) {
           : null
     }))
 
-    const { error: insertError } = await supabaseAdmin.from("file_items").upsert(file_items)
-    if (insertError) {
-      console.error("[❌] Supabase insert error:", insertError.message)
-      throw insertError
-    }
-
-    console.log("[✅] Inserted", file_items.length, "chunks into file_items");
+    await supabaseAdmin.from("file_items").upsert(file_items)
 
     const totalTokens = file_items.reduce((acc, item) => acc + item.tokens, 0)
 
-    const { error: updateError } = await supabaseAdmin
+    await supabaseAdmin
       .from("files")
       .update({ tokens: totalTokens })
       .eq("id", file_id)
-
-    if (updateError) {
-      console.error("[❌] Failed to update tokens in files table:", updateError.message)
-      throw updateError
-    }
 
     return new NextResponse("Embed Successful", {
       status: 200
     })
   } catch (error: any) {
-    console.error("[❌] Error in /api/retrieval/process:", error.message)
     console.log(`Error in retrieval/process: ${error.stack}`)
     const errorMessage = error?.message || "An unexpected error occurred"
     const errorCode = error.status || 500
