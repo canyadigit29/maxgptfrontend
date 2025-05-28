@@ -235,7 +235,7 @@ export const useChatHandler = () => {
 
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
         const embedText = commandSearchQuery || messageContent;
-        const embedResponse = await fetch(`${backendUrl}/api/embed`, {
+        const embedResponse = await fetch(`${backendUrl}/embed`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ input: embedText })
@@ -243,7 +243,7 @@ export const useChatHandler = () => {
         const { embedding } = await embedResponse.json();
 
         const response = await fetch(
-          `${backendUrl}/api/file_ops/search_docs`,
+          `${backendUrl}/file_ops/search_docs`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
