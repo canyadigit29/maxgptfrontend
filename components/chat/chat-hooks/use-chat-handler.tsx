@@ -121,7 +121,7 @@ export const useChatHandler = () => {
           | "local"
       });
 
-      let allFiles: Tables<"files">[] = [];
+      let allFiles: { id: string; name: string; type: string }[] = [];
 
       const assistantFiles = (
         await getAssistantFilesByAssistantId(selectedAssistant.id)
