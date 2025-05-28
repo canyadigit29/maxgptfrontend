@@ -211,7 +211,8 @@ export const useChatHandler = () => {
   ) => {
 // 🧠 Intercept document search requests
     if (shouldTriggerDocumentSearch(messageContent)) {
-      const embed = chatSettings.embeddingsProvider === "openai"
+      const provider = chatSettings?.embeddingsProvider || "openai";
+      const embed = provider === "openai"
         ? await getEmbedding(messageContent)
         : await generateLocalEmbedding(messageContent);
 
