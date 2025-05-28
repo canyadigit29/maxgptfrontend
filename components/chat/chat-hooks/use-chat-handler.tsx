@@ -22,6 +22,22 @@ import {
   validateChatSettings
 } from "../chat-helpers"
 
+
+function shouldTriggerDocumentSearch(input: string): boolean {
+  const lowered = input.toLowerCase();
+  return (
+    lowered.includes("search my documents") ||
+    lowered.includes("search my files") ||
+    lowered.includes("look in my documents") ||
+    lowered.includes("check my uploads") ||
+    lowered.includes("search the uploaded") ||
+    lowered.includes("find in my documents") ||
+    lowered.includes("something i uploaded") ||
+    lowered.includes("look through my documents")
+  );
+}
+
+
 export const useChatHandler = () => {
   const router = useRouter()
 
@@ -193,6 +209,45 @@ export const useChatHandler = () => {
     chatMessages: ChatMessage[],
     isRegeneration: boolean
   ) => {
+// 🧠 Intercept document search requests
+    if (shouldTriggerDocumentSearch(messageContent)) {
+      const embed = chatSettings.embeddingsProvider === "openai"
+        ? await getEmbedding(messageContent)
+        : await generateLocalEmbedding(messageContent);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/file_ops/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embedding: embed,
+          expected_phrase: messageContent
+        })
+      });
+
+      if (response.ok) {
+        const json = await response.json();
+        const docResults = json.results || [];
+        const summary = docResults.length > 0
+          ? docResults.map(chunk => `• ${chunk.content}`).join("\n")
+          : "No relevant content found.";
+
+        const injectedMessage: ChatMessage = {
+          message: {
+            role: "assistant",
+            content: `📄 Here’s what I found in your documents:\n\n${summary}`,
+            id: `docsearch-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            sequence_number: chatMessages.length,
+            chat_id: selectedChat?.id || "temp",
+            user_id: profile?.user_id || "anonymous"
+          },
+          fileItems: []
+        };
+
+        setChatMessages(prev => [...prev, injectedMessage]);
+      }
+    }
+
     const startingInput = messageContent
 
     try {
