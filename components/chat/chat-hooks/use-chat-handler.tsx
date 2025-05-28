@@ -1,4 +1,3 @@
-import { generateLocalEmbedding } from "@/lib/generate-local-embedding";
 import { ChatbotUIContext } from "@/context/context"
 import { getAssistantCollectionsByAssistantId } from "@/db/assistant-collections"
 import { getAssistantFilesByAssistantId } from "@/db/assistant-files"
@@ -240,7 +239,6 @@ export const useChatHandler = () => {
       ) {
         setToolInUse("retrieval")
 
-        const queryEmbedding = await generateLocalEmbedding(userInput);
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
         const response = await fetch(`${backendUrl}/api/file_ops/search_docs`, {
           method: "POST",
