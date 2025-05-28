@@ -6,7 +6,6 @@ import { updateChat } from "@/db/chats";
 import { getCollectionFilesByCollectionId } from "@/db/collection-files";
 import { deleteMessagesIncludingAndAfter } from "@/db/messages";
 import { buildFinalMessages } from "@/lib/build-prompt";
-import { generateLocalEmbedding } from "@/lib/generate-local-embedding";
 import { Tables } from "@/supabase/types";
 import { ChatMessage, ChatPayload, LLMID, ModelProvider } from "@/types";
 import { useRouter } from "next/navigation";
@@ -236,7 +235,12 @@ export const useChatHandler = () => {
 
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
         const embedText = commandSearchQuery || messageContent;
-        const embedding = await generateLocalEmbedding(embedText);
+        const embedResponse = await fetch(`${backendUrl}/api/embed`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input: embedText })
+        });
+        const { embedding } = await embedResponse.json();
 
         const response = await fetch(
           `${backendUrl}/api/file_ops/search_docs`,
