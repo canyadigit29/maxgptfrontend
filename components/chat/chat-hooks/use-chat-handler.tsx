@@ -239,13 +239,23 @@ export const useChatHandler = () => {
       ) {
         setToolInUse("retrieval")
 
-        retrievedFileItems = await handleRetrieval(
-          userInput,
-          newMessageFiles,
-          chatFiles,
-          chatSettings!.embeddingsProvider,
-          sourceCount
-        )
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+        const response = await fetch(`${backendUrl}/api/file_ops/search_docs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: userInput,
+            user_id: profile?.id || null,
+          })
+        });
+
+        if (!response.ok) {
+          console.error("Failed to fetch retrieved documents from backend.");
+          retrievedFileItems = [];
+        } else {
+          const data = await response.json();
+          retrievedFileItems = data.retrieved_chunks || [];
+        }
       }
 
       const { tempUserChatMessage, tempAssistantChatMessage } =
