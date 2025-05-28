@@ -22,7 +22,6 @@ import {
   validateChatSettings
 } from "../chat-helpers"
 
-
 function shouldTriggerDocumentSearch(input: string): boolean {
   const lowered = input.toLowerCase();
   return (
@@ -36,7 +35,6 @@ function shouldTriggerDocumentSearch(input: string): boolean {
     lowered.includes("look through my documents")
   );
 }
-
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -211,12 +209,11 @@ export const useChatHandler = () => {
   ) => {
 // 🧠 Intercept document search requests
     if (shouldTriggerDocumentSearch(messageContent)) {
-      const provider = chatSettings?.embeddingsProvider || "openai";
-      const embed = provider === "openai"
+      const embed = chatSettings.embeddingsProvider === "openai"
         ? await getEmbedding(messageContent)
         : await generateLocalEmbedding(messageContent);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/file_ops/search`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/search-docs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
