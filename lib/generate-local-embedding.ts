@@ -1,25 +1,17 @@
-export async function generateLocalEmbedding(text: string): Promise<number[]> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("❌ OPENAI_API_KEY environment variable is not set.");
+import { pipeline } from "@xenova/transformers"
 
-  const response = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      input: text,
-      model: "text-embedding-3-small"
-    })
-  });
+export async function generateLocalEmbedding(content: string) {
+  const generateEmbedding = await pipeline(
+    "feature-extraction",
+    "Xenova/all-MiniLM-L6-v2"
+  )
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("❌ OpenAI embedding request failed:", errorText);
-    throw new Error("Failed to fetch embedding from OpenAI.");
-  }
+  const output = await generateEmbedding(content, {
+    pooling: "mean",
+    normalize: true
+  })
 
-  const result = await response.json();
-  return result.data[0].embedding;
+  const embedding = Array.from(output.data)
+
+  return embedding
 }
