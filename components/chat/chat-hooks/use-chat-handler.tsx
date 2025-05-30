@@ -1,4 +1,38 @@
 import { ChatbotUIContext } from "@/context/context"
+
+// ⬇️ New helper to call backend for document retrieval
+const fetchRetrievedChunks = async (query: string, userId: string) => {
+  const embeddingRes = await fetch("/api/embedding", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ input: query })
+  });
+
+  if (!embeddingRes.ok) {
+    console.error("❌ Failed to embed query");
+    return [];
+  }
+
+  const { embedding } = await embeddingRes.json();
+
+  const backendRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/file_ops/search_docs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      embedding,
+      user_id: userId
+      // Add more filters here if needed
+    })
+  });
+
+  if (!backendRes.ok) {
+    console.error("❌ Backend retrieval failed");
+    return [];
+  }
+
+  const { retrieved_chunks } = await backendRes.json();
+  return retrieved_chunks || [];
+};
 import { getAssistantCollectionsByAssistantId } from "@/db/assistant-collections"
 import { getAssistantFilesByAssistantId } from "@/db/assistant-files"
 import { getAssistantToolsByAssistantId } from "@/db/assistant-tools"
@@ -57,7 +91,7 @@ export const useChatHandler = () => {
     chatFileItems,
     setChatFileItems,
     setToolInUse,
-    useRetrieval,
+    useRetrieval = true,  // ⬅️ Force-enabled for testing
     sourceCount,
     setIsPromptPickerOpen,
     setIsFilePickerOpen,
@@ -240,13 +274,7 @@ export const useChatHandler = () => {
       ) {
         setToolInUse("retrieval")
 
-        retrievedFileItems = await handleRetrieval(
-          userInput,
-          newMessageFiles,
-          chatFiles,
-          chatSettings!.embeddingsProvider,
-          sourceCount
-        )
+        retrievedFileItems = await fetchRetrievedChunks(userInput, chatSettings!.userId)
       }
 
       const { tempUserChatMessage, tempAssistantChatMessage } =
