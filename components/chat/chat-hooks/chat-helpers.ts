@@ -1,12 +1,9 @@
-
-import { createClient } from '@supabase/supabase-js'
 import { getEmbedding } from '@/lib/embedding'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
+/**
+ * Patched performSemanticSearch to use FastAPI backend for semantic search instead of direct Supabase RPC.
+ * Calls /file_ops/search_docs on your backend for all queries.
+ */
 export async function performSemanticSearch({
   query,
   file_name_filter,
@@ -15,7 +12,8 @@ export async function performSemanticSearch({
   start_date,
   end_date,
   user_id,
-  top_k = 10
+  top_k = 10,
+  expected_phrase,
 }: {
   query: string
   file_name_filter?: string
@@ -25,46 +23,42 @@ export async function performSemanticSearch({
   end_date?: string
   user_id?: string
   top_k?: number
+  expected_phrase?: string
 }) {
   if (!query || query.trim().length === 0) return []
 
   const embedding = await getEmbedding(query)
   if (!embedding) throw new Error('Failed to generate embedding.')
 
-  let supabaseQuery = supabase.rpc('match_document_chunks', {
-    query_embedding: embedding,
-    match_count: top_k
-  })
+  const backendUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    'https://backendsearch-production.up.railway.app/api'
 
-  if (file_name_filter) {
-    supabaseQuery = supabaseQuery.ilike('file_name', `%${file_name_filter}%`)
+  const response = await fetch(
+    `${backendUrl}/file_ops/search_docs`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        embedding,
+        user_id,
+        file_name_filter,
+        collection_filter,
+        description_filter,
+        start_date,
+        end_date,
+        expected_phrase,
+        top_k,
+      }),
+    }
+  )
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Semantic search failed')
   }
-
-  if (collection_filter && collection_filter.length > 0) {
-    supabaseQuery = supabaseQuery.in('collection', collection_filter)
-  }
-
-  if (description_filter) {
-    supabaseQuery = supabaseQuery.ilike('description', `%${description_filter}%`)
-  }
-
-  if (start_date) {
-    supabaseQuery = supabaseQuery.gte('relevant_date', start_date)
-  }
-
-  if (end_date) {
-    supabaseQuery = supabaseQuery.lte('relevant_date', end_date)
-  }
-
-  if (user_id) {
-    supabaseQuery = supabaseQuery.eq('user_id', user_id)
-  }
-
-  const { data, error } = await supabaseQuery
-  if (error) {
-    console.error('Supabase search error:', error)
-    throw error
-  }
-
-  return data || []
+  const data = await response.json()
+  return data.retrieved_chunks || []
 }
+
+// You can keep or add any other helpers below as needed.
