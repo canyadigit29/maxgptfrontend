@@ -17,6 +17,7 @@ import {
   handleCreateMessages,
   handleHostedChat,
   handleLocalChat,
+  handleRetrieval,
   processResponse,
   validateChatSettings
 } from "../chat-helpers"
@@ -155,6 +156,23 @@ export const useChatHandler = () => {
           | "openai"
           | "local"
       })
+    } else if (selectedWorkspace) {
+      // setChatSettings({
+      //   model: (selectedWorkspace.default_model ||
+      //     "gpt-4-1106-preview") as LLMID,
+      //   prompt:
+      //     selectedWorkspace.default_prompt ||
+      //     "You are a friendly, helpful AI assistant.",
+      //   temperature: selectedWorkspace.default_temperature || 0.5,
+      //   contextLength: selectedWorkspace.default_context_length || 4096,
+      //   includeProfileContext:
+      //     selectedWorkspace.include_profile_context || true,
+      //   includeWorkspaceInstructions:
+      //     selectedWorkspace.include_workspace_instructions || true,
+      //   embeddingsProvider:
+      //     (selectedWorkspace.embeddings_provider as "openai" | "local") ||
+      //     "openai"
+      // })
     }
 
     return router.push(`/${selectedWorkspace.id}/chat`)
@@ -216,34 +234,18 @@ export const useChatHandler = () => {
       let retrievedFileItems: Tables<"file_items">[] = []
 
       if (
-        (newMessageFiles.length > 0 || chatFiles.length > 0) || useRetrieval
+        (newMessageFiles.length > 0 || chatFiles.length > 0) &&
+        useRetrieval
       ) {
         setToolInUse("retrieval")
 
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || ""
-        const embedResponse = await fetch(`${backendUrl}/api/embed`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ input: messageContent })
-        })
-
-        const { embedding } = await embedResponse.json()
-
-        const response = await fetch(`${backendUrl}/api/file_ops/search_docs`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            embedding,
-            user_id: profile?.id || null
-          })
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          retrievedFileItems = data.retrieved_chunks || []
-        } else {
-          console.error("Failed to retrieve chunks", await response.text())
-        }
+        retrievedFileItems = await handleRetrieval(
+          userInput,
+          newMessageFiles,
+          chatFiles,
+          chatSettings!.embeddingsProvider,
+          sourceCount
+        )
       }
 
       const { tempUserChatMessage, tempAssistantChatMessage } =
