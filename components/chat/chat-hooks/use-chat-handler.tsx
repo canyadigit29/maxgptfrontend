@@ -17,13 +17,10 @@ import {
   handleCreateMessages,
   handleHostedChat,
   handleLocalChat,
+  handleRetrieval,
   processResponse,
   validateChatSettings
 } from "../chat-helpers"
-
-import { getEmbedding } from "@/lib/embedding"
-import { getCurrentUserId } from "@/db/user-utils"
-import { searchDocs } from "@/lib/search-docs-api"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -48,6 +45,7 @@ export const useChatHandler = () => {
     setAbortController,
     chatSettings,
     newMessageImages,
+    selectedAssistant,
     chatMessages,
     chatImages,
     setChatImages,
@@ -68,17 +66,7 @@ export const useChatHandler = () => {
     models,
     isPromptPickerOpen,
     isFilePickerOpen,
-    isToolPickerOpen,
-    selectedAssistant,
-    setSelectedAssistant,
-    assistants,
-    setAssistants,
-    selectedAssistantTools,
-    setSelectedAssistantTools,
-    selectedAssistantCollections,
-    setSelectedAssistantCollections,
-    selectedAssistantFiles,
-    setSelectedAssistantFiles
+    isToolPickerOpen
   } = useContext(ChatbotUIContext)
 
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
@@ -111,30 +99,80 @@ export const useChatHandler = () => {
     setSelectedTools([])
     setToolInUse("none")
 
-    // Multi-assistant: set chat settings from selected assistant
     if (selectedAssistant) {
       setChatSettings({
-        model: selectedAssistant.model as LLMID ?? "gpt-4-1106-preview",
-        prompt: selectedAssistant.prompt ?? "You are a friendly, helpful AI assistant.",
-        temperature: selectedAssistant.temperature ?? 0.5,
-        contextLength: selectedAssistant.context_length ?? 4096,
-        includeProfileContext: selectedAssistant.include_profile_context ?? false,
-        includeWorkspaceInstructions: selectedAssistant.include_workspace_instructions ?? false,
-        embeddingsProvider: selectedAssistant.embeddings_provider ?? "openai"
+        model: selectedAssistant.model as LLMID,
+        prompt: selectedAssistant.prompt,
+        temperature: selectedAssistant.temperature,
+        contextLength: selectedAssistant.context_length,
+        includeProfileContext: selectedAssistant.include_profile_context,
+        includeWorkspaceInstructions:
+          selectedAssistant.include_workspace_instructions,
+        embeddingsProvider: selectedAssistant.embeddings_provider as
+          | "openai"
+          | "local"
       })
 
-      // Load per-assistant tools, collections, files
-      const tools = await getAssistantToolsByAssistantId(selectedAssistant.id)
-      setSelectedAssistantTools(tools)
-      setSelectedTools(tools.map(t => t.tool_id))
+      let allFiles = []
 
-      const collections = await getAssistantCollectionsByAssistantId(selectedAssistant.id)
-      setSelectedAssistantCollections(collections)
+      const assistantFiles = (
+        await getAssistantFilesByAssistantId(selectedAssistant.id)
+      ).files
+      allFiles = [...assistantFiles]
+      const assistantCollections = (
+        await getAssistantCollectionsByAssistantId(selectedAssistant.id)
+      ).collections
+      for (const collection of assistantCollections) {
+        const collectionFiles = (
+          await getCollectionFilesByCollectionId(collection.id)
+        ).files
+        allFiles = [...allFiles, ...collectionFiles]
+      }
+      const assistantTools = (
+        await getAssistantToolsByAssistantId(selectedAssistant.id)
+      ).tools
 
-      const files = await getAssistantFilesByAssistantId(selectedAssistant.id)
-      setSelectedAssistantFiles(files)
-      setChatFiles(files)
-      setShowFilesDisplay(files.length > 0)
+      setSelectedTools(assistantTools)
+      setChatFiles(
+        allFiles.map(file => ({
+          id: file.id,
+          name: file.name,
+          type: file.type,
+          file: null
+        }))
+      )
+
+      if (allFiles.length > 0) setShowFilesDisplay(true)
+    } else if (selectedPreset) {
+      setChatSettings({
+        model: selectedPreset.model as LLMID,
+        prompt: selectedPreset.prompt,
+        temperature: selectedPreset.temperature,
+        contextLength: selectedPreset.context_length,
+        includeProfileContext: selectedPreset.include_profile_context,
+        includeWorkspaceInstructions:
+          selectedPreset.include_workspace_instructions,
+        embeddingsProvider: selectedPreset.embeddings_provider as
+          | "openai"
+          | "local"
+      })
+    } else if (selectedWorkspace) {
+      // setChatSettings({
+      //   model: (selectedWorkspace.default_model ||
+      //     "gpt-4-1106-preview") as LLMID,
+      //   prompt:
+      //     selectedWorkspace.default_prompt ||
+      //     "You are a friendly, helpful AI assistant.",
+      //   temperature: selectedWorkspace.default_temperature || 0.5,
+      //   contextLength: selectedWorkspace.default_context_length || 4096,
+      //   includeProfileContext:
+      //     selectedWorkspace.include_profile_context || true,
+      //   includeWorkspaceInstructions:
+      //     selectedWorkspace.include_workspace_instructions || true,
+      //   embeddingsProvider:
+      //     (selectedWorkspace.embeddings_provider as "openai" | "local") ||
+      //     "openai"
+      // })
     }
 
     return router.push(`/${selectedWorkspace.id}/chat`)
@@ -201,51 +239,33 @@ export const useChatHandler = () => {
       ) {
         setToolInUse("retrieval")
 
-        const user_id = await getCurrentUserId()
-        const embedding = await getEmbedding(userInput)
-
-        const fileNameFilters = newMessageFiles
-          .map(f => f.name)
-          .concat(chatFiles.map(f => f.name))
-          .filter(Boolean)
-          .join(",") || undefined
-
-        const collectionFilter = undefined
-        const descriptionFilter = undefined
-        const startDate = undefined
-        const endDate = undefined
-
-        retrievedFileItems = await searchDocs({
-          embedding,
-          user_id,
-          file_name_filter: fileNameFilters,
-          collection_filter: collectionFilter,
-          description_filter: descriptionFilter,
-          start_date: startDate,
-          end_date: endDate
-        })
-
-        setToolInUse("none")
+        retrievedFileItems = await handleRetrieval(
+          userInput,
+          newMessageFiles,
+          chatFiles,
+          chatSettings!.embeddingsProvider,
+          sourceCount
+        )
       }
 
       const { tempUserChatMessage, tempAssistantChatMessage } =
         createTempMessages(
           messageContent,
           chatMessages,
-          { ...chatSettings!, prompt: selectedAssistant?.prompt ?? "You are a friendly, helpful AI assistant." },
+          chatSettings!,
           b64Images,
           isRegeneration,
           setChatMessages,
-          selectedAssistant // pass full assistant object
+          selectedAssistant
         )
 
       let payload: ChatPayload = {
-        chatSettings: { ...chatSettings!, prompt: selectedAssistant?.prompt ?? "You are a friendly, helpful AI assistant." },
-        workspaceInstructions: "",
+        chatSettings: chatSettings!,
+        workspaceInstructions: selectedWorkspace!.instructions || "",
         chatMessages: isRegeneration
           ? [...chatMessages]
           : [...chatMessages, tempUserChatMessage],
-        assistant: selectedAssistant,
+        assistant: selectedChat?.assistant_id ? selectedAssistant : null,
         messageFileItems: retrievedFileItems,
         chatFileItems: chatFileItems
       }
@@ -291,7 +311,7 @@ export const useChatHandler = () => {
           generatedText = await handleLocalChat(
             payload,
             profile!,
-            { ...chatSettings!, prompt: selectedAssistant?.prompt ?? "You are a friendly, helpful AI assistant." },
+            chatSettings!,
             tempAssistantChatMessage,
             isRegeneration,
             newAbortController,
@@ -320,11 +340,11 @@ export const useChatHandler = () => {
 
       if (!currentChat) {
         currentChat = await handleCreateChat(
-          { ...chatSettings!, prompt: selectedAssistant?.prompt ?? "You are a friendly, helpful AI assistant." },
+          chatSettings!,
           profile!,
           selectedWorkspace!,
           messageContent,
-          selectedAssistant, // pass full assistant object
+          selectedAssistant!,
           newMessageFiles,
           setSelectedChat,
           setChats,
@@ -357,7 +377,7 @@ export const useChatHandler = () => {
         setChatMessages,
         setChatFileItems,
         setChatImages,
-        selectedAssistant // pass full assistant object
+        selectedAssistant
       )
 
       setIsGenerating(false)
@@ -392,6 +412,7 @@ export const useChatHandler = () => {
 
   return {
     chatInputRef,
+    prompt,
     handleNewChat,
     handleSendMessage,
     handleFocusChatInput,
