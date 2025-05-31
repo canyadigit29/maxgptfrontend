@@ -215,6 +215,39 @@ export const useChatHandler = () => {
     }
   }
 
+  const makeAssistantMessage = ({
+    content,
+    chatMessages,
+    selectedAssistant,
+    chatSettings,
+    role = "assistant"
+  }: {
+    content: string
+    chatMessages: ChatMessage[]
+    selectedAssistant: any
+    chatSettings: any
+    role?: string
+  }): ChatMessage => {
+    // Fill required fields of Tables<"messages"> as best as possible
+    return {
+      message: {
+        // These fields are required. Use '' or sensible defaults if not available.
+        id: "",
+        chat_id: "",
+        assistant_id: selectedAssistant?.id || null,
+        user_id: "",
+        content,
+        model: chatSettings?.model || "",
+        role,
+        sequence_number: chatMessages.length,
+        created_at: "",
+        updated_at: "",
+        image_paths: []
+      },
+      fileItems: []
+    }
+  }
+
   const handleSendMessage = async (
     messageContent: string,
     chatMessages: ChatMessage[],
@@ -304,7 +337,12 @@ export const useChatHandler = () => {
           )}\nYour collections: ${collectionNames.join(", ")}`
           setChatMessages([
             ...chatMessages,
-            { message: { role: "assistant", content: prompt } }
+            makeAssistantMessage({
+              content: prompt,
+              chatMessages,
+              selectedAssistant,
+              chatSettings
+            })
           ])
           setIsGenerating(false)
           return
@@ -332,7 +370,12 @@ export const useChatHandler = () => {
         if (error) {
           setChatMessages([
             ...chatMessages,
-            { message: { role: "assistant", content: `Search failed: ${error}` } }
+            makeAssistantMessage({
+              content: `Search failed: ${error}`,
+              chatMessages,
+              selectedAssistant,
+              chatSettings
+            })
           ])
           setIsGenerating(false)
           return
@@ -355,14 +398,24 @@ export const useChatHandler = () => {
 
         setChatMessages([
           ...chatMessages,
-          { message: { role: "assistant", content: summary } }
+          makeAssistantMessage({
+            content: summary,
+            chatMessages,
+            selectedAssistant,
+            chatSettings
+          })
         ])
         setIsGenerating(false)
         return
       } catch (err: any) {
         setChatMessages([
           ...chatMessages,
-          { message: { role: "assistant", content: `Error: ${err.message}` } }
+          makeAssistantMessage({
+            content: `Error: ${err.message}`,
+            chatMessages,
+            selectedAssistant,
+            chatSettings
+          })
         ])
         setIsGenerating(false)
         return
