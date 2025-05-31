@@ -17,10 +17,14 @@ import {
   handleCreateMessages,
   handleHostedChat,
   handleLocalChat,
-  handleRetrieval,
   processResponse,
   validateChatSettings
 } from "../chat-helpers"
+
+// PATCH: Use backend search instead of handleRetrieval
+import { getEmbedding } from "@/lib/embedding"
+import { getCurrentUserId } from "@/db/user-utils.tx"
+import { searchDocs } from "@/lib/search-docs-api"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -233,19 +237,38 @@ export const useChatHandler = () => {
 
       let retrievedFileItems: Tables<"file_items">[] = []
 
+      // PATCH: Use backend-powered semantic search
       if (
         (newMessageFiles.length > 0 || chatFiles.length > 0) &&
         useRetrieval
       ) {
         setToolInUse("retrieval")
 
-        retrievedFileItems = await handleRetrieval(
-          userInput,
-          newMessageFiles,
-          chatFiles,
-          chatSettings!.embeddingsProvider,
-          sourceCount
-        )
+        const user_id = await getCurrentUserId()
+        const embedding = await getEmbedding(userInput)
+
+        const fileNameFilters = newMessageFiles
+          .map(f => f.name)
+          .concat(chatFiles.map(f => f.name))
+          .filter(Boolean)
+          .join(",") || undefined
+
+        const collectionFilter = undefined
+        const descriptionFilter = undefined
+        const startDate = undefined
+        const endDate = undefined
+
+        retrievedFileItems = await searchDocs({
+          embedding,
+          user_id,
+          file_name_filter: fileNameFilters,
+          collection_filter: collectionFilter,
+          description_filter: descriptionFilter,
+          start_date: startDate,
+          end_date: endDate
+        })
+
+        setToolInUse("none")
       }
 
       const { tempUserChatMessage, tempAssistantChatMessage } =
