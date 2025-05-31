@@ -2,7 +2,7 @@ export interface SearchDocsParams {
   embedding: number[];
   user_id: string;
   file_name_filter?: string;
-  collection_filter?: string[]; // Make collection_filter an array for consistency
+  collection_filter?: string[];
   description_filter?: string;
   start_date?: string;
   end_date?: string;
