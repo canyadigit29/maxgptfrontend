@@ -22,8 +22,6 @@ import {
   validateChatSettings
 } from "../chat-helpers"
 
-// --- PATCH: Semantic Search Helper Functions ---
-// (You may move these to a utils file if desired.)
 function parseSearchIntent(userMessage: string) {
   const searchWords = /(search|find|look up|documents?|files?)/i
   return searchWords.test(userMessage)
@@ -67,7 +65,6 @@ function getDateRangeAround(dateString: string): { start_date: string; end_date:
     end_date: end.toISOString().split('T')[0]
   }
 }
-// --- END PATCH ---
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -203,23 +200,6 @@ export const useChatHandler = () => {
           | "openai"
           | "local"
       })
-    } else if (selectedWorkspace) {
-      // setChatSettings({
-      //   model: (selectedWorkspace.default_model ||
-      //     "gpt-4-1106-preview") as LLMID,
-      //   prompt:
-      //     selectedWorkspace.default_prompt ||
-      //     "You are a friendly, helpful AI assistant.",
-      //   temperature: selectedWorkspace.default_temperature || 0.5,
-      //   contextLength: selectedWorkspace.default_context_length || 4096,
-      //   includeProfileContext:
-      //     selectedWorkspace.include_profile_context || true,
-      //   includeWorkspaceInstructions:
-      //     selectedWorkspace.include_workspace_instructions || true,
-      //   embeddingsProvider:
-      //     (selectedWorkspace.embeddings_provider as "openai" | "local") ||
-      //     "openai"
-      // })
     }
 
     return router.push(`/${selectedWorkspace.id}/chat`)
@@ -242,7 +222,6 @@ export const useChatHandler = () => {
   ) => {
     const startingInput = messageContent
 
-    // --- PATCH: Semantic Document Search with Filters ---
     if (parseSearchIntent(messageContent)) {
       try {
         setUserInput("")
@@ -251,7 +230,6 @@ export const useChatHandler = () => {
         setIsFilePickerOpen(false)
         setNewMessageImages([])
 
-        // Gather user's own files/collections
         let allFiles: { id: string, name: string, type: string }[] = []
         let allCollections: { id: string, name: string }[] = []
         if (selectedAssistant) {
@@ -273,7 +251,6 @@ export const useChatHandler = () => {
         const fileNames = allFiles.map(f => f.name)
         const collectionNames = allCollections.map(c => c.name)
 
-        // Extract filters from query
         const extracted = extractFiltersFromQuery(messageContent)
         let missingFilters: string[] = []
         let file_name_filter = extracted.file_name_filter
@@ -288,7 +265,6 @@ export const useChatHandler = () => {
           end_date = range.end_date
         }
 
-        // Try to match filter values
         if (
           file_name_filter &&
           !fileNames.some(
@@ -328,16 +304,14 @@ export const useChatHandler = () => {
           )}\nYour collections: ${collectionNames.join(", ")}`
           setChatMessages([
             ...chatMessages,
-            { role: "assistant", content: prompt }
+            { message: { role: "assistant", content: prompt } }
           ])
           setIsGenerating(false)
           return
         }
 
-        // You may need to adjust the API endpoint below for your backend
         const payload = {
           embedding: null,
-          // Use assistant id for user scoping; adjust if you have user IDs
           assistant_id: selectedAssistant?.id || null,
           file_name_filter,
           collection_filter,
@@ -358,7 +332,7 @@ export const useChatHandler = () => {
         if (error) {
           setChatMessages([
             ...chatMessages,
-            { role: "assistant", content: `Search failed: ${error}` }
+            { message: { role: "assistant", content: `Search failed: ${error}` } }
           ])
           setIsGenerating(false)
           return
@@ -381,20 +355,19 @@ export const useChatHandler = () => {
 
         setChatMessages([
           ...chatMessages,
-          { role: "assistant", content: summary }
+          { message: { role: "assistant", content: summary } }
         ])
         setIsGenerating(false)
         return
       } catch (err: any) {
         setChatMessages([
           ...chatMessages,
-          { role: "assistant", content: `Error: ${err.message}` }
+          { message: { role: "assistant", content: `Error: ${err.message}` } }
         ])
         setIsGenerating(false)
         return
       }
     }
-    // --- END PATCH ---
 
     try {
       setUserInput("")
