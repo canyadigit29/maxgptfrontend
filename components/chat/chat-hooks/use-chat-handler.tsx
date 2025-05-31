@@ -66,8 +66,8 @@ export const useChatHandler = () => {
     models,
     isPromptPickerOpen,
     isFilePickerOpen,
-    isToolPickerOpen,
-    prompt // PATCH: add prompt to destructuring
+    isToolPickerOpen
+    // prompt // REMOVED: prompt is not a top-level property, use chatSettings?.prompt instead
   } = useContext(ChatbotUIContext)
 
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
@@ -413,7 +413,7 @@ export const useChatHandler = () => {
 
   return {
     chatInputRef,
-    prompt,
+    // prompt, // REMOVED: prompt is not a top-level context property
     handleNewChat,
     handleSendMessage,
     handleFocusChatInput,
