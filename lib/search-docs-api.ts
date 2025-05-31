@@ -2,14 +2,19 @@ export interface SearchDocsParams {
   embedding: number[];
   user_id: string;
   file_name_filter?: string;
-  collection_filter?: string;
+  collection_filter?: string[]; // Make collection_filter an array for consistency
   description_filter?: string;
   start_date?: string;
   end_date?: string;
+  top_k?: number;
 }
 
 export async function searchDocs(params: SearchDocsParams) {
-  const response = await fetch("/file_ops/search_docs", {
+  const backendUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    "https://backendsearch-production.up.railway.app/api";
+
+  const response = await fetch(`${backendUrl}/file_ops/search_docs`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
