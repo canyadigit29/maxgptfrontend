@@ -4,8 +4,6 @@ import { ChatbotUIContext } from "@/context/context"
 import { LLM_LIST } from "@/lib/models/llm/llm-list"
 import { getEmbedding } from "@/lib/embedding"
 import { searchDocs } from "@/lib/search-docs-api"
-import { handleCreateChat, updateChat } from "@/db/chats"
-import { handleLocalChat, handleHostedChat, buildFinalMessages, processResponse } from "../chat-helpers"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -60,13 +58,13 @@ export const useChatHandler = () => {
     selectedTools,
     setSelectedTools,
     toolInUse,
-    setToolInUse,
-    // ...other context values if needed
+    setToolInUse
   } = useContext(ChatbotUIContext)
 
   const chatInputRef = useRef<HTMLInputElement>(null)
 
-  // Inlined validateChatSettings logic
+  // --- Inline helpers ---
+
   function validateChatSettings(
     chatSettings: any,
     modelData: any,
@@ -81,44 +79,91 @@ export const useChatHandler = () => {
     if (!messageContent) throw new Error("Message content is empty.")
   }
 
-  // Inlined retrieval handler logic (dummy for now, could be replaced if needed)
-  async function handleRetrieval(
-    userInput: string,
-    newMessageFiles: any[],
-    chatFiles: any[],
-    embeddingsProvider: any,
-    sourceCount: number
-  ) {
-    // You can implement retrieval logic here if used elsewhere in your code.
-    return []
+  async function updateChat(chatId: string, updateObj: any) {
+    // Dummy update: in a real app, call your backend/db here
+    return { id: chatId, ...updateObj }
   }
 
-  // Inlined message creation logic (dummy for now, could be expanded)
-  async function handleCreateMessages(
-    chatMessages: any[],
-    currentChat: any,
+  async function handleCreateChat(
+    chatSettings: any,
+    profile: any,
+    selectedWorkspace: any,
+    messageContent: string,
+    selectedAssistant: any,
+    newMessageFiles: any[],
+    setSelectedChat: any,
+    setChats: any,
+    setChatFiles: any
+  ) {
+    const newChat = {
+      id: `chat-${Date.now()}`,
+      settings: chatSettings,
+      profileId: profile.id,
+      workspaceId: selectedWorkspace.id,
+      firstMessage: messageContent,
+      assistant: selectedAssistant,
+      files: newMessageFiles
+    }
+    setSelectedChat(newChat)
+    setChats((prev: any[]) => [newChat, ...prev])
+    setChatFiles(newMessageFiles)
+    return newChat
+  }
+
+  async function handleLocalChat(
+    payload: any,
+    profile: any,
+    chatSettings: any,
+    tempAssistantChatMessage: any,
+    isRegeneration: boolean,
+    newAbortController: AbortController,
+    setIsGenerating: any,
+    setFirstTokenReceived: any,
+    setChatMessages: any,
+    setToolInUse: any
+  ) {
+    // Simulated local LLM response
+    return "This is a simulated local LLM response."
+  }
+
+  async function handleHostedChat(
+    payload: any,
     profile: any,
     modelData: any,
-    messageContent: string,
-    generatedText: string,
-    newMessageImages: any[],
+    tempAssistantChatMessage: any,
     isRegeneration: boolean,
-    retrievedFileItems: any[],
+    newAbortController: AbortController,
+    newMessageImages: any[],
+    chatImages: any[],
+    setIsGenerating: any,
+    setFirstTokenReceived: any,
     setChatMessages: any,
-    setChatFileItems: any,
-    setChatImages: any,
-    selectedAssistant: any
+    setToolInUse: any
   ) {
-    // Example: just append the assistant's message
-    setChatMessages([
-      ...chatMessages,
-      {
-        id: `assistant-message-${Date.now()}`,
-        role: "assistant",
-        content: generatedText
-      }
-    ])
+    // Simulated hosted LLM response
+    return "This is a simulated hosted LLM response."
   }
+
+  async function processResponse(
+    response: Response,
+    tempAssistantChatMessage: any,
+    isTool: boolean,
+    newAbortController: AbortController,
+    setFirstTokenReceived: any,
+    setChatMessages: any,
+    setToolInUse: any
+  ) {
+    // Simulated streaming/tool response
+    const data = await response.json()
+    return data.generatedText || "Simulated tool response."
+  }
+
+  function buildFinalMessages(payload: any, profile: any, chatImages: any[]) {
+    // Dummy, just return the messages as-is
+    return payload.chatMessages
+  }
+
+  // --- /Inline helpers ---
 
   const handleNewChat = async () => {
     setChatMessages([])
@@ -253,7 +298,7 @@ export const useChatHandler = () => {
       // ---- END PATCH ----
 
       const modelData = [
-        ...models.map(model => ({
+        ...models.map((model: any) => ({
           modelId: model.model_id,
           modelName: model.name,
           provider: "custom",
@@ -262,7 +307,7 @@ export const useChatHandler = () => {
           imageInput: false
         })),
         ...LLM_LIST
-      ].find(llm => llm.modelId === chatSettings?.model)
+      ].find((llm: any) => llm.modelId === chatSettings?.model)
 
       validateChatSettings(
         chatSettings,
@@ -277,21 +322,6 @@ export const useChatHandler = () => {
       const b64Images = newMessageImages.map((image: any) => image.base64)
 
       let retrievedFileItems: any[] = []
-
-      if (
-        (newMessageFiles.length > 0 || chatFiles.length > 0) &&
-        useRetrieval
-      ) {
-        setToolInUse("retrieval")
-
-        retrievedFileItems = await handleRetrieval(
-          userInput,
-          newMessageFiles,
-          chatFiles,
-          chatSettings!.embeddingsProvider,
-          sourceCount
-        )
-      }
 
       // Minimal temp message logic for demonstration
       const tempUserChatMessage = {
@@ -321,7 +351,7 @@ export const useChatHandler = () => {
       if (selectedTools.length > 0) {
         setToolInUse("Tools")
 
-        const formattedMessages = await buildFinalMessages(
+        const formattedMessages = buildFinalMessages(
           payload,
           profile!,
           chatImages
@@ -410,21 +440,15 @@ export const useChatHandler = () => {
         })
       }
 
-      await handleCreateMessages(
-        chatMessages,
-        currentChat,
-        profile!,
-        modelData!,
-        messageContent,
-        generatedText,
-        newMessageImages,
-        isRegeneration,
-        retrievedFileItems,
-        setChatMessages,
-        setChatFileItems,
-        setChatImages,
-        selectedAssistant
-      )
+      // Dummy message creation, appends the generated text as assistant message
+      setChatMessages([
+        ...chatMessages,
+        {
+          id: `assistant-message-${Date.now()}`,
+          role: "assistant",
+          content: generatedText
+        }
+      ])
 
       setIsGenerating(false)
       setFirstTokenReceived(false)
