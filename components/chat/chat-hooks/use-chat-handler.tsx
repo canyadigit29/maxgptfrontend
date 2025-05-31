@@ -233,14 +233,19 @@ export const useChatHandler = () => {
 
       let retrievedFileItems: Tables<"file_items">[] = []
 
+      // PATCHED LOGIC: trigger retrieval if files attached OR "search my" in message
       if (
-        (newMessageFiles.length > 0 || chatFiles.length > 0) &&
-        useRetrieval
+        useRetrieval &&
+        (
+          newMessageFiles.length > 0 ||
+          chatFiles.length > 0 ||
+          /search my/i.test(messageContent)
+        )
       ) {
         setToolInUse("retrieval")
 
         retrievedFileItems = await handleRetrieval(
-          userInput,
+          messageContent,
           newMessageFiles,
           chatFiles,
           chatSettings!.embeddingsProvider,
