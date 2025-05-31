@@ -67,7 +67,6 @@ export const useChatHandler = () => {
     isPromptPickerOpen,
     isFilePickerOpen,
     isToolPickerOpen
-    // prompt // REMOVED: prompt is not a top-level property, use chatSettings?.prompt instead
   } = useContext(ChatbotUIContext)
 
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
@@ -234,9 +233,10 @@ export const useChatHandler = () => {
 
       let retrievedFileItems: Tables<"file_items">[] = []
 
+      // PATCHED LOGIC: trigger retrieval ONLY if prompt contains "search my"
       if (
-        (newMessageFiles.length > 0 || chatFiles.length > 0) &&
-        useRetrieval
+        useRetrieval &&
+        /search my/i.test(messageContent)
       ) {
         setToolInUse("retrieval")
 
@@ -413,7 +413,6 @@ export const useChatHandler = () => {
 
   return {
     chatInputRef,
-    // prompt, // REMOVED: prompt is not a top-level context property
     handleNewChat,
     handleSendMessage,
     handleFocusChatInput,
