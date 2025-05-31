@@ -22,6 +22,53 @@ import {
   validateChatSettings
 } from "../chat-helpers"
 
+// --- PATCH: Semantic Search Helper Functions ---
+// (You may move these to a utils file if desired.)
+function parseSearchIntent(userMessage: string) {
+  const searchWords = /(search|find|look up|documents?|files?)/i
+  return searchWords.test(userMessage)
+}
+
+function extractFiltersFromQuery(query: string) {
+  const filters: {
+    file_name_filter?: string
+    collection_filter?: string
+    description_filter?: string
+    start_date?: string
+    end_date?: string
+    fuzzy_date?: string
+  } = {}
+
+  const fileMatch = query.match(/file(?:d)?(?: named)? ([\w.\- ]+)/i)
+  if (fileMatch) filters.file_name_filter = fileMatch[1].trim()
+
+  const collectionMatch = query.match(/collection(?: named)? ([\w.\- ]+)/i)
+  if (collectionMatch) filters.collection_filter = collectionMatch[1].trim()
+
+  const descMatch = query.match(/description(?: contains| is)? ([\w.\- ]+)/i)
+  if (descMatch) filters.description_filter = descMatch[1].trim()
+
+  const fuzzyDateMatch = query.match(
+    /(?:around|about|near|on|in)\s+([A-Za-z]+\s+\d{4}|\d{4}-\d{2}-\d{2}|\d{4})/i
+  )
+  if (fuzzyDateMatch) filters.fuzzy_date = fuzzyDateMatch[1].trim()
+
+  return filters
+}
+
+function getDateRangeAround(dateString: string): { start_date: string; end_date: string } {
+  const date = new Date(dateString)
+  const start = new Date(date)
+  const end = new Date(date)
+  start.setMonth(start.getMonth() - 3)
+  end.setMonth(end.getMonth() + 3)
+  return {
+    start_date: start.toISOString().split('T')[0],
+    end_date: end.toISOString().split('T')[0]
+  }
+}
+// --- END PATCH ---
+
 export const useChatHandler = () => {
   const router = useRouter()
 
@@ -194,6 +241,160 @@ export const useChatHandler = () => {
     isRegeneration: boolean
   ) => {
     const startingInput = messageContent
+
+    // --- PATCH: Semantic Document Search with Filters ---
+    if (parseSearchIntent(messageContent)) {
+      try {
+        setUserInput("")
+        setIsGenerating(true)
+        setIsPromptPickerOpen(false)
+        setIsFilePickerOpen(false)
+        setNewMessageImages([])
+
+        // Gather user's own files/collections
+        let allFiles: { id: string, name: string, type: string }[] = []
+        let allCollections: { id: string, name: string }[] = []
+        if (selectedAssistant) {
+          const assistantFiles = (
+            await getAssistantFilesByAssistantId(selectedAssistant.id)
+          ).files
+          allFiles = [...assistantFiles]
+          const assistantCollections = (
+            await getAssistantCollectionsByAssistantId(selectedAssistant.id)
+          ).collections
+          allCollections = [...assistantCollections]
+          for (const collection of assistantCollections) {
+            const collectionFiles = (
+              await getCollectionFilesByCollectionId(collection.id)
+            ).files
+            allFiles = [...allFiles, ...collectionFiles]
+          }
+        }
+        const fileNames = allFiles.map(f => f.name)
+        const collectionNames = allCollections.map(c => c.name)
+
+        // Extract filters from query
+        const extracted = extractFiltersFromQuery(messageContent)
+        let missingFilters: string[] = []
+        let file_name_filter = extracted.file_name_filter
+        let collection_filter = extracted.collection_filter
+        let description_filter = extracted.description_filter
+        let start_date: string | undefined
+        let end_date: string | undefined
+
+        if (extracted.fuzzy_date) {
+          const range = getDateRangeAround(extracted.fuzzy_date)
+          start_date = range.start_date
+          end_date = range.end_date
+        }
+
+        // Try to match filter values
+        if (
+          file_name_filter &&
+          !fileNames.some(
+            (fn) => fn.toLowerCase() === file_name_filter!.toLowerCase()
+          )
+        ) {
+          const close = fileNames.find((fn) =>
+            fn.toLowerCase().includes(file_name_filter!.toLowerCase())
+          )
+          if (close) file_name_filter = close
+          else missingFilters.push("file name (choose one of your files)")
+        }
+
+        if (
+          collection_filter &&
+          !collectionNames.some(
+            (cn) => cn.toLowerCase() === collection_filter!.toLowerCase()
+          )
+        ) {
+          const close = collectionNames.find((cn) =>
+            cn.toLowerCase().includes(collection_filter!.toLowerCase())
+          )
+          if (close) collection_filter = close
+          else missingFilters.push("collection name (choose one of your collections)")
+        }
+
+        if (!file_name_filter && fileNames.length > 1)
+          missingFilters.push("file name")
+        if (!collection_filter && collectionNames.length > 1)
+          missingFilters.push("collection name")
+
+        if (missingFilters.length > 0) {
+          const prompt = `Please specify: ${missingFilters.join(
+            " and "
+          )}.\n\nYour file names: ${fileNames.join(
+            ", "
+          )}\nYour collections: ${collectionNames.join(", ")}`
+          setChatMessages([
+            ...chatMessages,
+            { role: "assistant", content: prompt }
+          ])
+          setIsGenerating(false)
+          return
+        }
+
+        // You may need to adjust the API endpoint below for your backend
+        const payload = {
+          embedding: null,
+          // Use assistant id for user scoping; adjust if you have user IDs
+          assistant_id: selectedAssistant?.id || null,
+          file_name_filter,
+          collection_filter,
+          description_filter,
+          start_date,
+          end_date,
+          query: messageContent
+        }
+
+        const response = await fetch("/api/file_ops/search_docs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        })
+
+        const { retrieved_chunks, error } = await response.json()
+
+        if (error) {
+          setChatMessages([
+            ...chatMessages,
+            { role: "assistant", content: `Search failed: ${error}` }
+          ])
+          setIsGenerating(false)
+          return
+        }
+
+        const summary =
+          retrieved_chunks && retrieved_chunks.length
+            ? "Search results:\n" +
+              retrieved_chunks
+                .map(
+                  (chunk: any, idx: number) =>
+                    `Result ${idx + 1} (score: ${chunk.score}):\nFile: ${
+                      chunk.metadata.file_name
+                    }\nCollection: ${chunk.metadata.collection}\nCreated: ${
+                      chunk.metadata.created_at
+                    }\n---\n${chunk.content}\n`
+                )
+                .join("\n")
+            : "No results found for your search."
+
+        setChatMessages([
+          ...chatMessages,
+          { role: "assistant", content: summary }
+        ])
+        setIsGenerating(false)
+        return
+      } catch (err: any) {
+        setChatMessages([
+          ...chatMessages,
+          { role: "assistant", content: `Error: ${err.message}` }
+        ])
+        setIsGenerating(false)
+        return
+      }
+    }
+    // --- END PATCH ---
 
     try {
       setUserInput("")
