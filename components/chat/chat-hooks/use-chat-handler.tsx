@@ -17,10 +17,10 @@ import {
   handleCreateMessages,
   handleHostedChat,
   handleLocalChat,
-  performSemanticSearch, // PATCH: use performSemanticSearch, not handleRetrieval
+  performSemanticSearch, // PATCH: correct import path!
   processResponse,
   validateChatSettings
-} from "../chat-helpers"
+} from "./chat-helpers" // PATCH: use relative path to chat-helpers.ts
 
 export const useChatHandler = () => {
   const router = useRouter()
