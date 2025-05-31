@@ -55,7 +55,7 @@ export const CreateAssistant: FC<CreateAssistantProps> = ({
     })
   }, [name])
 
-  const handleRetrievalItemSelect = (
+  const performSemanticSearchItemSelect = (
     item: Tables<"files"> | Tables<"collections">
   ) => {
     setSelectedAssistantRetrievalItems(prevState => {
@@ -185,7 +185,7 @@ export const CreateAssistant: FC<CreateAssistantProps> = ({
 
             <AssistantRetrievalSelect
               selectedAssistantRetrievalItems={selectedAssistantRetrievalItems}
-              onAssistantRetrievalItemsSelect={handleRetrievalItemSelect}
+              onAssistantRetrievalItemsSelect={performSemanticSearchItemSelect}
             />
           </div>
 

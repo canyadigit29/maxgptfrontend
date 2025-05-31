@@ -7,7 +7,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-export async function handleRetrieval({
+export async function performSemanticSearch({
   query,
   file_name_filter,
   collection_filter,

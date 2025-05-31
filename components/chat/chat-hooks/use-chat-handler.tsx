@@ -21,7 +21,7 @@ import {
   validateChatSettings
 } from "../chat-helpers"
 
-// PATCH: Use backend search instead of handleRetrieval
+// PATCH: Use backend search instead of performSemanticSearch
 import { getEmbedding } from "@/lib/embedding"
 import { getCurrentUserId } from "@/db/user-utils.tx"
 import { searchDocs } from "@/lib/search-docs-api"
