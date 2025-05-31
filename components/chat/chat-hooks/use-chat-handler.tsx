@@ -17,7 +17,7 @@ import {
   handleCreateMessages,
   handleHostedChat,
   handleLocalChat,
-  handleRetrieval,
+  performSemanticSearch, // PATCH: use performSemanticSearch, not handleRetrieval
   processResponse,
   validateChatSettings
 } from "../chat-helpers"
@@ -233,20 +233,20 @@ export const useChatHandler = () => {
 
       let retrievedFileItems: Tables<"file_items">[] = []
 
-      // PATCHED LOGIC: trigger retrieval ONLY if prompt contains "search my"
+      // PATCH: Use backend semantic search for "search my", ignore file attachments
       if (
         useRetrieval &&
         /search my/i.test(messageContent)
       ) {
         setToolInUse("retrieval")
-
-        retrievedFileItems = await handleRetrieval(
-          userInput,
-          newMessageFiles,
-          chatFiles,
-          chatSettings!.embeddingsProvider,
-          sourceCount
-        )
+        // You can add more filters here if needed
+        const searchResults = await performSemanticSearch({
+          query: messageContent,
+          user_id: profile?.id || "",
+          top_k: sourceCount
+        })
+        // Map search results to your schema if needed:
+        retrievedFileItems = searchResults
       }
 
       const { tempUserChatMessage, tempAssistantChatMessage } =
@@ -413,6 +413,7 @@ export const useChatHandler = () => {
 
   return {
     chatInputRef,
+    prompt,
     handleNewChat,
     handleSendMessage,
     handleFocusChatInput,
