@@ -1,4 +1,3 @@
-// ... (other imports)
 import { ChatbotUIContext } from "@/context/context"
 import { getAssistantCollectionsByAssistantId } from "@/db/assistant-collections"
 import { getAssistantFilesByAssistantId } from "@/db/assistant-files"
@@ -25,9 +24,6 @@ import {
 import { getEmbedding } from "@/lib/embedding"
 import { getCurrentUserId } from "@/db/user-utils"
 import { searchDocs } from "@/lib/search-docs-api"
-
-// Add this import if you use assistant context, otherwise you may fetch the default one in your workspace logic
-import { getAssistantById } from "@/db/assistants"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -73,9 +69,16 @@ export const useChatHandler = () => {
     isPromptPickerOpen,
     isFilePickerOpen,
     isToolPickerOpen,
-    // Restored:
     selectedAssistant,
-    setSelectedAssistant
+    setSelectedAssistant,
+    assistants,
+    setAssistants,
+    selectedAssistantTools,
+    setSelectedAssistantTools,
+    selectedAssistantCollections,
+    setSelectedAssistantCollections,
+    selectedAssistantFiles,
+    setSelectedAssistantFiles
   } = useContext(ChatbotUIContext)
 
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
@@ -85,9 +88,6 @@ export const useChatHandler = () => {
       chatInputRef.current?.focus()
     }
   }, [isPromptPickerOpen, isFilePickerOpen, isToolPickerOpen])
-
-  // If you want to always use a particular assistant, hardcode its ID here.
-  // Otherwise, keep 'selectedAssistant' logic as below and set it in context/UI on workspace/chat load.
 
   const handleNewChat = async () => {
     if (!selectedWorkspace) return
@@ -111,21 +111,31 @@ export const useChatHandler = () => {
     setSelectedTools([])
     setToolInUse("none")
 
-    // Restore: System prompt comes from assistant
-    setChatSettings({
-      model: chatSettings?.model as LLMID ?? "gpt-4-1106-preview",
-      prompt: selectedAssistant?.prompt ?? "You are a friendly, helpful AI assistant.",
-      temperature: chatSettings?.temperature ?? 0.5,
-      contextLength: chatSettings?.contextLength ?? 4096,
-      includeProfileContext: false,
-      includeWorkspaceInstructions: false,
-      embeddingsProvider: chatSettings?.embeddingsProvider ?? "openai"
-    })
+    // Multi-assistant: set chat settings from selected assistant
+    if (selectedAssistant) {
+      setChatSettings({
+        model: selectedAssistant.model as LLMID ?? "gpt-4-1106-preview",
+        prompt: selectedAssistant.prompt ?? "You are a friendly, helpful AI assistant.",
+        temperature: selectedAssistant.temperature ?? 0.5,
+        contextLength: selectedAssistant.context_length ?? 4096,
+        includeProfileContext: selectedAssistant.include_profile_context ?? false,
+        includeWorkspaceInstructions: selectedAssistant.include_workspace_instructions ?? false,
+        embeddingsProvider: selectedAssistant.embeddings_provider ?? "openai"
+      })
 
-    // You may wish to clear files/tools if you no longer have per-assistant logic
-    setSelectedTools([])
-    setChatFiles([])
-    setShowFilesDisplay(false)
+      // Load per-assistant tools, collections, files
+      const tools = await getAssistantToolsByAssistantId(selectedAssistant.id)
+      setSelectedAssistantTools(tools)
+      setSelectedTools(tools.map(t => t.tool_id))
+
+      const collections = await getAssistantCollectionsByAssistantId(selectedAssistant.id)
+      setSelectedAssistantCollections(collections)
+
+      const files = await getAssistantFilesByAssistantId(selectedAssistant.id)
+      setSelectedAssistantFiles(files)
+      setChatFiles(files)
+      setShowFilesDisplay(files.length > 0)
+    }
 
     return router.push(`/${selectedWorkspace.id}/chat`)
   }
@@ -218,7 +228,6 @@ export const useChatHandler = () => {
         setToolInUse("none")
       }
 
-      // Restore: Use selectedAssistant (single, locked) as before
       const { tempUserChatMessage, tempAssistantChatMessage } =
         createTempMessages(
           messageContent,
@@ -227,7 +236,7 @@ export const useChatHandler = () => {
           b64Images,
           isRegeneration,
           setChatMessages,
-          selectedAssistant // pass through, not null/undefined
+          selectedAssistant // pass full assistant object
         )
 
       let payload: ChatPayload = {
@@ -236,7 +245,7 @@ export const useChatHandler = () => {
         chatMessages: isRegeneration
           ? [...chatMessages]
           : [...chatMessages, tempUserChatMessage],
-        assistant: selectedAssistant, // pass through
+        assistant: selectedAssistant,
         messageFileItems: retrievedFileItems,
         chatFileItems: chatFileItems
       }
@@ -315,7 +324,7 @@ export const useChatHandler = () => {
           profile!,
           selectedWorkspace!,
           messageContent,
-          selectedAssistant, // pass through
+          selectedAssistant, // pass full assistant object
           newMessageFiles,
           setSelectedChat,
           setChats,
@@ -348,7 +357,7 @@ export const useChatHandler = () => {
         setChatMessages,
         setChatFileItems,
         setChatImages,
-        selectedAssistant // pass through
+        selectedAssistant // pass full assistant object
       )
 
       setIsGenerating(false)
