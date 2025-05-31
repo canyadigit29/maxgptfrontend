@@ -22,7 +22,7 @@ import {
 } from "../chat-helpers"
 
 import { getEmbedding } from "@/lib/embedding"
-import { getCurrentUserId } from "@/db/user-utils.tx"
+import { getCurrentUserId } from "@/db/user-utils"
 import { searchDocs } from "@/lib/search-docs-api"
 
 // GLOBAL SYSTEM INSTRUCTIONS: all users share these, set them here
