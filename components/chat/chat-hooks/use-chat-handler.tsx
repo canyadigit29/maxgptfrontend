@@ -21,10 +21,12 @@ import {
   validateChatSettings
 } from "../chat-helpers"
 
-// PATCH: Use backend search instead of performSemanticSearch
 import { getEmbedding } from "@/lib/embedding"
 import { getCurrentUserId } from "@/db/user-utils.tx"
 import { searchDocs } from "@/lib/search-docs-api"
+
+// GLOBAL SYSTEM INSTRUCTIONS: all users share these, set them here
+const SYSTEM_INSTRUCTIONS = `You are a friendly, helpful AI assistant. Always provide clear, concise, and accurate information. Answer questions to the best of your ability, and ask clarifying questions if information is missing. Be respectful and professional at all times.`
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -49,7 +51,6 @@ export const useChatHandler = () => {
     setAbortController,
     chatSettings,
     newMessageImages,
-    selectedAssistant,
     chatMessages,
     chatImages,
     setChatImages,
@@ -103,81 +104,21 @@ export const useChatHandler = () => {
     setSelectedTools([])
     setToolInUse("none")
 
-    if (selectedAssistant) {
-      setChatSettings({
-        model: selectedAssistant.model as LLMID,
-        prompt: selectedAssistant.prompt,
-        temperature: selectedAssistant.temperature,
-        contextLength: selectedAssistant.context_length,
-        includeProfileContext: selectedAssistant.include_profile_context,
-        includeWorkspaceInstructions:
-          selectedAssistant.include_workspace_instructions,
-        embeddingsProvider: selectedAssistant.embeddings_provider as
-          | "openai"
-          | "local"
-      })
+    // Only use the system instructions; no per-assistant/preset logic
+    setChatSettings({
+      model: chatSettings?.model as LLMID ?? "gpt-4-1106-preview",
+      prompt: SYSTEM_INSTRUCTIONS,
+      temperature: chatSettings?.temperature ?? 0.5,
+      contextLength: chatSettings?.contextLength ?? 4096,
+      includeProfileContext: false,
+      includeWorkspaceInstructions: false,
+      embeddingsProvider: chatSettings?.embeddingsProvider ?? "openai"
+    })
 
-      let allFiles = []
-
-      const assistantFiles = (
-        await getAssistantFilesByAssistantId(selectedAssistant.id)
-      ).files
-      allFiles = [...assistantFiles]
-      const assistantCollections = (
-        await getAssistantCollectionsByAssistantId(selectedAssistant.id)
-      ).collections
-      for (const collection of assistantCollections) {
-        const collectionFiles = (
-          await getCollectionFilesByCollectionId(collection.id)
-        ).files
-        allFiles = [...allFiles, ...collectionFiles]
-      }
-      const assistantTools = (
-        await getAssistantToolsByAssistantId(selectedAssistant.id)
-      ).tools
-
-      setSelectedTools(assistantTools)
-      setChatFiles(
-        allFiles.map(file => ({
-          id: file.id,
-          name: file.name,
-          type: file.type,
-          file: null
-        }))
-      )
-
-      if (allFiles.length > 0) setShowFilesDisplay(true)
-    } else if (selectedPreset) {
-      setChatSettings({
-        model: selectedPreset.model as LLMID,
-        prompt: selectedPreset.prompt,
-        temperature: selectedPreset.temperature,
-        contextLength: selectedPreset.context_length,
-        includeProfileContext: selectedPreset.include_profile_context,
-        includeWorkspaceInstructions:
-          selectedPreset.include_workspace_instructions,
-        embeddingsProvider: selectedPreset.embeddings_provider as
-          | "openai"
-          | "local"
-      })
-    } else if (selectedWorkspace) {
-      // setChatSettings({
-      //   model: (selectedWorkspace.default_model ||
-      //     "gpt-4-1106-preview") as LLMID,
-      //   prompt:
-      //     selectedWorkspace.default_prompt ||
-      //     "You are a friendly, helpful AI assistant.",
-      //   temperature: selectedWorkspace.default_temperature || 0.5,
-      //   contextLength: selectedWorkspace.default_context_length || 4096,
-      //   includeProfileContext:
-      //     selectedWorkspace.include_profile_context || true,
-      //   includeWorkspaceInstructions:
-      //     selectedWorkspace.include_workspace_instructions || true,
-      //   embeddingsProvider:
-      //     (selectedWorkspace.embeddings_provider as "openai" | "local") ||
-      //     "openai"
-      // })
-    }
+    // You may wish to clear files/tools if you no longer have per-assistant logic
+    setSelectedTools([])
+    setChatFiles([])
+    setShowFilesDisplay(false)
 
     return router.push(`/${selectedWorkspace.id}/chat`)
   }
@@ -237,7 +178,6 @@ export const useChatHandler = () => {
 
       let retrievedFileItems: Tables<"file_items">[] = []
 
-      // PATCH: Use backend-powered semantic search
       if (
         (newMessageFiles.length > 0 || chatFiles.length > 0) &&
         useRetrieval
@@ -275,20 +215,20 @@ export const useChatHandler = () => {
         createTempMessages(
           messageContent,
           chatMessages,
-          chatSettings!,
+          { ...chatSettings!, prompt: SYSTEM_INSTRUCTIONS }, // Always use system instructions
           b64Images,
           isRegeneration,
           setChatMessages,
-          selectedAssistant
+          undefined // no assistant
         )
 
       let payload: ChatPayload = {
-        chatSettings: chatSettings!,
-        workspaceInstructions: selectedWorkspace!.instructions || "",
+        chatSettings: { ...chatSettings!, prompt: SYSTEM_INSTRUCTIONS },
+        workspaceInstructions: "",
         chatMessages: isRegeneration
           ? [...chatMessages]
           : [...chatMessages, tempUserChatMessage],
-        assistant: selectedChat?.assistant_id ? selectedAssistant : null,
+        assistant: null,
         messageFileItems: retrievedFileItems,
         chatFileItems: chatFileItems
       }
@@ -334,7 +274,7 @@ export const useChatHandler = () => {
           generatedText = await handleLocalChat(
             payload,
             profile!,
-            chatSettings!,
+            { ...chatSettings!, prompt: SYSTEM_INSTRUCTIONS },
             tempAssistantChatMessage,
             isRegeneration,
             newAbortController,
@@ -363,11 +303,11 @@ export const useChatHandler = () => {
 
       if (!currentChat) {
         currentChat = await handleCreateChat(
-          chatSettings!,
+          { ...chatSettings!, prompt: SYSTEM_INSTRUCTIONS },
           profile!,
           selectedWorkspace!,
           messageContent,
-          selectedAssistant!,
+          undefined, // no assistant
           newMessageFiles,
           setSelectedChat,
           setChats,
@@ -400,7 +340,7 @@ export const useChatHandler = () => {
         setChatMessages,
         setChatFileItems,
         setChatImages,
-        selectedAssistant
+        undefined // no assistant
       )
 
       setIsGenerating(false)
@@ -435,7 +375,6 @@ export const useChatHandler = () => {
 
   return {
     chatInputRef,
-    prompt,
     handleNewChat,
     handleSendMessage,
     handleFocusChatInput,
