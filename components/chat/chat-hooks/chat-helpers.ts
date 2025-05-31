@@ -1,10 +1,6 @@
 import { getEmbedding } from '@/lib/embedding'
 import { searchDocs } from '@/lib/search-docs-api'
 
-/**
- * Performs a semantic search by calling the backend FastAPI.
- * Calls /file_ops/search_docs on your backend for all queries.
- */
 export async function performSemanticSearch({
   query,
   file_name_filter,
