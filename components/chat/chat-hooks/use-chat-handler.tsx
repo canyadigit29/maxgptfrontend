@@ -1,3 +1,4 @@
+// ... (other imports)
 import { ChatbotUIContext } from "@/context/context"
 import { getAssistantCollectionsByAssistantId } from "@/db/assistant-collections"
 import { getAssistantFilesByAssistantId } from "@/db/assistant-files"
@@ -25,8 +26,8 @@ import { getEmbedding } from "@/lib/embedding"
 import { getCurrentUserId } from "@/db/user-utils"
 import { searchDocs } from "@/lib/search-docs-api"
 
-// GLOBAL SYSTEM INSTRUCTIONS: all users share these, set them here
-const SYSTEM_INSTRUCTIONS = `You are a friendly, helpful AI assistant. Always provide clear, concise, and accurate information. Answer questions to the best of your ability, and ask clarifying questions if information is missing. Be respectful and professional at all times.`
+// Add this import if you use assistant context, otherwise you may fetch the default one in your workspace logic
+import { getAssistantById } from "@/db/assistants"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -71,7 +72,10 @@ export const useChatHandler = () => {
     models,
     isPromptPickerOpen,
     isFilePickerOpen,
-    isToolPickerOpen
+    isToolPickerOpen,
+    // Restored:
+    selectedAssistant,
+    setSelectedAssistant
   } = useContext(ChatbotUIContext)
 
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
@@ -81,6 +85,9 @@ export const useChatHandler = () => {
       chatInputRef.current?.focus()
     }
   }, [isPromptPickerOpen, isFilePickerOpen, isToolPickerOpen])
+
+  // If you want to always use a particular assistant, hardcode its ID here.
+  // Otherwise, keep 'selectedAssistant' logic as below and set it in context/UI on workspace/chat load.
 
   const handleNewChat = async () => {
     if (!selectedWorkspace) return
@@ -104,10 +111,10 @@ export const useChatHandler = () => {
     setSelectedTools([])
     setToolInUse("none")
 
-    // Only use the system instructions; no per-assistant/preset logic
+    // Restore: System prompt comes from assistant
     setChatSettings({
       model: chatSettings?.model as LLMID ?? "gpt-4-1106-preview",
-      prompt: SYSTEM_INSTRUCTIONS,
+      prompt: selectedAssistant?.prompt ?? "You are a friendly, helpful AI assistant.",
       temperature: chatSettings?.temperature ?? 0.5,
       contextLength: chatSettings?.contextLength ?? 4096,
       includeProfileContext: false,
@@ -211,24 +218,25 @@ export const useChatHandler = () => {
         setToolInUse("none")
       }
 
+      // Restore: Use selectedAssistant (single, locked) as before
       const { tempUserChatMessage, tempAssistantChatMessage } =
         createTempMessages(
           messageContent,
           chatMessages,
-          { ...chatSettings!, prompt: SYSTEM_INSTRUCTIONS }, // Always use system instructions
+          { ...chatSettings!, prompt: selectedAssistant?.prompt ?? "You are a friendly, helpful AI assistant." },
           b64Images,
           isRegeneration,
           setChatMessages,
-          undefined // no assistant
+          selectedAssistant // pass through, not null/undefined
         )
 
       let payload: ChatPayload = {
-        chatSettings: { ...chatSettings!, prompt: SYSTEM_INSTRUCTIONS },
+        chatSettings: { ...chatSettings!, prompt: selectedAssistant?.prompt ?? "You are a friendly, helpful AI assistant." },
         workspaceInstructions: "",
         chatMessages: isRegeneration
           ? [...chatMessages]
           : [...chatMessages, tempUserChatMessage],
-        assistant: null,
+        assistant: selectedAssistant, // pass through
         messageFileItems: retrievedFileItems,
         chatFileItems: chatFileItems
       }
@@ -274,7 +282,7 @@ export const useChatHandler = () => {
           generatedText = await handleLocalChat(
             payload,
             profile!,
-            { ...chatSettings!, prompt: SYSTEM_INSTRUCTIONS },
+            { ...chatSettings!, prompt: selectedAssistant?.prompt ?? "You are a friendly, helpful AI assistant." },
             tempAssistantChatMessage,
             isRegeneration,
             newAbortController,
@@ -303,11 +311,11 @@ export const useChatHandler = () => {
 
       if (!currentChat) {
         currentChat = await handleCreateChat(
-          { ...chatSettings!, prompt: SYSTEM_INSTRUCTIONS },
+          { ...chatSettings!, prompt: selectedAssistant?.prompt ?? "You are a friendly, helpful AI assistant." },
           profile!,
           selectedWorkspace!,
           messageContent,
-          undefined, // no assistant
+          selectedAssistant, // pass through
           newMessageFiles,
           setSelectedChat,
           setChats,
@@ -340,7 +348,7 @@ export const useChatHandler = () => {
         setChatMessages,
         setChatFileItems,
         setChatImages,
-        undefined // no assistant
+        selectedAssistant // pass through
       )
 
       setIsGenerating(false)
