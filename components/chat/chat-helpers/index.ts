@@ -51,7 +51,7 @@ export const validateChatSettings = (
   }
 }
 
-export const performSemanticSearch = async (
+export const handleRetrieval = async (
   userInput: string,
   newMessageFiles: ChatFile[],
   chatFiles: ChatFile[],
