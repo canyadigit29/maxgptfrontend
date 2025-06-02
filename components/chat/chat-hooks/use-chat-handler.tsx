@@ -237,7 +237,7 @@ export const useChatHandler = () => {
       // --- "run search" tool logic start ---
       let runSearchTriggered = false
       let searchQuery = messageContent
-      let retrievalResults = []
+      let retrievalResults: any[] = []
 
       if (messageContent.trim().toLowerCase().startsWith("run search")) {
         runSearchTriggered = true
