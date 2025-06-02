@@ -115,13 +115,16 @@ export const GlobalState: FC<GlobalStateProps> = ({ children }) => {
   const [newMessageImages, setNewMessageImages] = useState<MessageImage[]>([])
   const [showFilesDisplay, setShowFilesDisplay] = useState<boolean>(false)
 
-  // RETIEVAL STORE
+  // RETRIEVAL STORE
   const [useRetrieval, setUseRetrieval] = useState<boolean>(true)
   const [sourceCount, setSourceCount] = useState<number>(4)
 
   // TOOL STORE
   const [selectedTools, setSelectedTools] = useState<Tables<"tools">[]>([])
   const [toolInUse, setToolInUse] = useState<string>("none")
+
+  // GLOBAL ALL FILES STORE
+  const [allFiles, setAllFiles] = useState<ChatFile[]>([])
 
   useEffect(() => {
     ;(async () => {
@@ -322,7 +325,11 @@ export const GlobalState: FC<GlobalStateProps> = ({ children }) => {
         selectedTools,
         setSelectedTools,
         toolInUse,
-        setToolInUse
+        setToolInUse,
+
+        // GLOBAL ALL FILES STORE
+        allFiles,
+        setAllFiles
       }}
     >
       {children}
