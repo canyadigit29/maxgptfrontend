@@ -42,7 +42,10 @@ export const QuickSettings: FC<QuickSettingsProps> = ({}) => {
     setChatFiles,
     setSelectedTools,
     setShowFilesDisplay,
-    selectedWorkspace
+    selectedWorkspace,
+    // PATCH: add allFiles and setAllFiles to context
+    allFiles,
+    setAllFiles
   } = useContext(ChatbotUIContext)
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -67,10 +70,10 @@ export const QuickSettings: FC<QuickSettingsProps> = ({}) => {
     if (contentType === "assistants" && item) {
       setSelectedAssistant(item as Tables<"assistants">)
       setLoading(true)
-      let allFiles = []
+      let allFilesLocal = []
       const assistantFiles = (await getAssistantFilesByAssistantId(item.id))
         .files
-      allFiles = [...assistantFiles]
+      allFilesLocal = [...assistantFiles]
       const assistantCollections = (
         await getAssistantCollectionsByAssistantId(item.id)
       ).collections
@@ -78,20 +81,21 @@ export const QuickSettings: FC<QuickSettingsProps> = ({}) => {
         const collectionFiles = (
           await getCollectionFilesByCollectionId(collection.id)
         ).files
-        allFiles = [...allFiles, ...collectionFiles]
+        allFilesLocal = [...allFilesLocal, ...collectionFiles]
       }
       const assistantTools = (await getAssistantToolsByAssistantId(item.id))
         .tools
       setSelectedTools(assistantTools)
       setChatFiles(
-        allFiles.map(file => ({
+        allFilesLocal.map(file => ({
           id: file.id,
           name: file.name,
           type: file.type,
           file: null
         }))
       )
-      if (allFiles.length > 0) setShowFilesDisplay(true)
+      setAllFiles(allFilesLocal) // PATCH: update the global allFiles
+      if (allFilesLocal.length > 0) setShowFilesDisplay(true)
       setLoading(false)
       setSelectedPreset(null)
     } else if (contentType === "presets" && item) {
