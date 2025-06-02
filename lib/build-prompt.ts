@@ -3,6 +3,9 @@ import { ChatPayload, MessageImage } from "@/types"
 import { encode } from "gpt-tokenizer"
 import { getBase64FromDataURL, getMediaTypeFromDataURL } from "@/lib/utils"
 
+/**
+ * Builds the base system prompt for the chat.
+ */
 const buildBasePrompt = (
   prompt: string,
   profileContext: string,
@@ -30,6 +33,23 @@ const buildBasePrompt = (
   return fullPrompt
 }
 
+/**
+ * Optionally builds retrieval text from file items (if required in your system).
+ * You may already have this elsewhere; if not, adjust accordingly.
+ */
+const buildRetrievalText = (fileItems: Tables<"file_items">[]) => {
+  if (!fileItems || fileItems.length === 0) return ""
+  return (
+    "Relevant knowledge from your files:\n" +
+    fileItems.map((item, idx) => `(${idx + 1}) ${item.content}`).join("\n---\n") +
+    "\n"
+  )
+}
+
+/**
+ * Builds the final messages array for the LLM, including system prompt,
+ * chat history, and (if present) retrievalContext as a system message.
+ */
 export async function buildFinalMessages(
   payload: ChatPayload,
   profile: Tables<"profiles">,
@@ -41,7 +61,8 @@ export async function buildFinalMessages(
     chatMessages,
     assistant,
     messageFileItems,
-    chatFileItems
+    chatFileItems,
+    retrievalContext // <-- Now included in ChatPayload
   } = payload
 
   const BUILT_PROMPT = buildBasePrompt(
@@ -55,10 +76,10 @@ export async function buildFinalMessages(
   const PROMPT_TOKENS = encode(chatSettings.prompt).length
 
   let remainingTokens = CHUNK_SIZE - PROMPT_TOKENS
-
   let usedTokens = 0
   usedTokens += PROMPT_TOKENS
 
+  // File-aware message postprocessing
   const processedChatMessages = chatMessages.map((chatMessage, index) => {
     const nextChatMessage = chatMessages[index + 1]
 
@@ -90,8 +111,9 @@ export async function buildFinalMessages(
     return chatMessage
   })
 
-  let finalMessages = []
+  let finalMessages: any[] = []
 
+  // Add up message tokens in reverse until out of space
   for (let i = processedChatMessages.length - 1; i >= 0; i--) {
     const message = processedChatMessages[i].message
     const messageTokens = encode(message.content).length
@@ -105,6 +127,7 @@ export async function buildFinalMessages(
     }
   }
 
+  // Always inject the system message from BUILT_PROMPT as the first message
   let tempSystemMessage: Tables<"messages"> = {
     chat_id: "",
     assistant_id: null,
@@ -115,146 +138,27 @@ export async function buildFinalMessages(
     model: payload.chatSettings.model,
     role: "system",
     sequence_number: processedChatMessages.length,
-    updated_at: "",
     user_id: ""
   }
 
   finalMessages.unshift(tempSystemMessage)
 
-  finalMessages = finalMessages.map(message => {
-    let content
-
-    if (message.image_paths.length > 0) {
-      content = [
-        {
-          type: "text",
-          text: message.content
-        },
-        ...message.image_paths.map(path => {
-          let formedUrl = ""
-
-          if (path.startsWith("data")) {
-            formedUrl = path
-          } else {
-            const chatImage = chatImages.find(image => image.path === path)
-
-            if (chatImage) {
-              formedUrl = chatImage.base64
-            }
-          }
-
-          return {
-            type: "image_url",
-            image_url: {
-              url: formedUrl
-            }
-          }
-        })
-      ]
-    } else {
-      content = message.content
+  // PATCH: If retrievalContext is present, inject it as an additional system message (at the front)
+  if (retrievalContext && retrievalContext.trim().length > 0) {
+    const retrievalSystemMessage: Tables<"messages"> = {
+      chat_id: "",
+      assistant_id: null,
+      content: retrievalContext,
+      created_at: "",
+      id: (processedChatMessages.length + 1) + "",
+      image_paths: [],
+      model: payload.chatSettings.model,
+      role: "system",
+      sequence_number: processedChatMessages.length + 1,
+      user_id: ""
     }
-
-    return {
-      role: message.role,
-      content
-    }
-  })
-
-  if (messageFileItems.length > 0) {
-    const retrievalText = buildRetrievalText(messageFileItems)
-
-    finalMessages[finalMessages.length - 1] = {
-      ...finalMessages[finalMessages.length - 1],
-      content: `${
-        finalMessages[finalMessages.length - 1].content
-      }\n\n${retrievalText}`
-    }
+    finalMessages.unshift(retrievalSystemMessage)
   }
 
   return finalMessages
 }
-
-function buildRetrievalText(fileItems: Tables<"file_items">[]) {
-  const retrievalText = fileItems
-    .map(item => `<BEGIN SOURCE>\n${item.content}\n</END SOURCE>`)
-    .join("\n\n")
-
-  return `You may use the following sources if needed to answer the user's question. If you don't know the answer, say "I don't know."\n\n${retrievalText}`
-}
-
-function adaptSingleMessageForGoogleGemini(message: any) {
-
-  let adaptedParts = []
-
-  let rawParts = []
-  if(!Array.isArray(message.content)) {
-    rawParts.push({type: 'text', text: message.content})
-  } else {
-    rawParts = message.content
-  }
-
-  for(let i = 0; i < rawParts.length; i++) {
-    let rawPart = rawParts[i]
-
-    if(rawPart.type == 'text') {
-      adaptedParts.push({text: rawPart.text})
-    } else if(rawPart.type === 'image_url') {
-      adaptedParts.push({
-        inlineData: {
-          data: getBase64FromDataURL(rawPart.image_url.url),
-          mimeType: getMediaTypeFromDataURL(rawPart.image_url.url),
-        }
-      })
-    }
-  }
-
-  let role = 'user'
-  if(["user", "system"].includes(message.role)) {
-    role = 'user'
-  } else if(message.role === 'assistant') {
-    role = 'model'
-  }
-
-  return {
-    role: role,
-    parts: adaptedParts
-  }
-}
-
-function adaptMessagesForGeminiVision(
-  messages: any[]
-) {
-  // Gemini Pro Vision cannot process multiple messages
-  // Reformat, using all texts and last visual only
-
-  const basePrompt = messages[0].parts[0].text
-  const baseRole = messages[0].role
-  const lastMessage = messages[messages.length-1]
-  const visualMessageParts = lastMessage.parts;
-  let visualQueryMessages = [{
-    role: "user",
-    parts: [
-      `${baseRole}:\n${basePrompt}\n\nuser:\n${visualMessageParts[0].text}\n\n`,
-      visualMessageParts.slice(1)
-    ]
-  }]
-  return visualQueryMessages
-}
-
-export async function adaptMessagesForGoogleGemini(
-  payload: ChatPayload,
-  messages:  any[]
-) {
-  let geminiMessages = []
-  for (let i = 0; i < messages.length; i++) {
-    let adaptedMessage = adaptSingleMessageForGoogleGemini(messages[i])
-    geminiMessages.push(adaptedMessage)
-  }
-
-  if(payload.chatSettings.model === "gemini-pro-vision") {
-    geminiMessages = adaptMessagesForGeminiVision(geminiMessages)
-  }
-  return geminiMessages
-}
-
