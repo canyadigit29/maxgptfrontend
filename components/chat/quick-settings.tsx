@@ -43,7 +43,6 @@ export const QuickSettings: FC<QuickSettingsProps> = ({}) => {
     setSelectedTools,
     setShowFilesDisplay,
     selectedWorkspace,
-    // PATCH: add allFiles and setAllFiles to context
     allFiles,
     setAllFiles
   } = useContext(ChatbotUIContext)
@@ -94,7 +93,14 @@ export const QuickSettings: FC<QuickSettingsProps> = ({}) => {
           file: null
         }))
       )
-      setAllFiles(allFilesLocal) // PATCH: update the global allFiles
+      setAllFiles(
+        allFilesLocal.map(file => ({
+          id: file.id,
+          name: file.name,
+          type: file.type,
+          file: null
+        }))
+      )
       if (allFilesLocal.length > 0) setShowFilesDisplay(true)
       setLoading(false)
       setSelectedPreset(null)
