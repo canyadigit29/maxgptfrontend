@@ -66,7 +66,10 @@ export const useChatHandler = () => {
     models,
     isPromptPickerOpen,
     isFilePickerOpen,
-    isToolPickerOpen
+    isToolPickerOpen,
+    // PATCH: Add these two lines
+    allFiles,
+    setAllFiles
   } = useContext(ChatbotUIContext)
 
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
@@ -113,12 +116,12 @@ export const useChatHandler = () => {
           | "local"
       })
 
-      let allFiles = []
+      let allFilesLocal = []
 
       const assistantFiles = (
         await getAssistantFilesByAssistantId(selectedAssistant.id)
       ).files
-      allFiles = [...assistantFiles]
+      allFilesLocal = [...assistantFiles]
       const assistantCollections = (
         await getAssistantCollectionsByAssistantId(selectedAssistant.id)
       ).collections
@@ -126,7 +129,7 @@ export const useChatHandler = () => {
         const collectionFiles = (
           await getCollectionFilesByCollectionId(collection.id)
         ).files
-        allFiles = [...allFiles, ...collectionFiles]
+        allFilesLocal = [...allFilesLocal, ...collectionFiles]
       }
       const assistantTools = (
         await getAssistantToolsByAssistantId(selectedAssistant.id)
@@ -134,15 +137,16 @@ export const useChatHandler = () => {
 
       setSelectedTools(assistantTools)
       setChatFiles(
-        allFiles.map(file => ({
+        allFilesLocal.map(file => ({
           id: file.id,
           name: file.name,
           type: file.type,
           file: null
         }))
       )
+      setAllFiles(allFilesLocal) // PATCH: update global allFiles
 
-      if (allFiles.length > 0) setShowFilesDisplay(true)
+      if (allFilesLocal.length > 0) setShowFilesDisplay(true)
     } else if (selectedPreset) {
       setChatSettings({
         model: selectedPreset.model as LLMID,
@@ -241,14 +245,13 @@ export const useChatHandler = () => {
 
       if (messageContent.trim().toLowerCase().startsWith("run search")) {
         runSearchTriggered = true
-        // Remove "run search" and extract query
         searchQuery = messageContent.replace(/^run search\s*/i, "")
         setToolInUse("retrieval")
         try {
           retrievalResults = await handleRetrieval(
             searchQuery,
-            newMessageFiles, // or [] if you want to ignore attached files
-            chatFiles,
+            [],
+            allFiles, // PATCH: use allFiles for run search
             chatSettings!.embeddingsProvider,
             sourceCount
           )
