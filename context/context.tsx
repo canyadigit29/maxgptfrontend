@@ -10,7 +10,7 @@ import {
 } from "@/types"
 import { AssistantImage } from "@/types/images/assistant-image"
 import { VALID_ENV_KEYS } from "@/types/valid-keys"
-import { Dispatch, SetStateAction, createContext } from "react"
+import { Dispatch, SetStateAction, createContext, useState } from "react"
 
 interface ChatbotUIContext {
   // PROFILE STORE
@@ -136,6 +136,10 @@ interface ChatbotUIContext {
   setSelectedTools: Dispatch<SetStateAction<Tables<"tools">[]>>
   toolInUse: string
   setToolInUse: Dispatch<SetStateAction<string>>
+
+  // GLOBAL ALL FILES STORE
+  allFiles: ChatFile[]
+  setAllFiles: Dispatch<SetStateAction<ChatFile[]>>
 }
 
 export const ChatbotUIContext = createContext<ChatbotUIContext>({
@@ -261,5 +265,9 @@ export const ChatbotUIContext = createContext<ChatbotUIContext>({
   selectedTools: [],
   setSelectedTools: () => {},
   toolInUse: "none",
-  setToolInUse: () => {}
+  setToolInUse: () => {},
+
+  // GLOBAL ALL FILES STORE
+  allFiles: [],
+  setAllFiles: () => {}
 })
