@@ -18,6 +18,7 @@ export interface ChatPayload {
   assistant: Tables<"assistants"> | null
   messageFileItems: Tables<"file_items">[]
   chatFileItems: Tables<"file_items">[]
+  retrievalContext?: string // <-- Add this line
 }
 
 export interface ChatAPIPayload {
