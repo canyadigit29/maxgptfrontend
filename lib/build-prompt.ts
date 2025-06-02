@@ -41,7 +41,8 @@ export async function buildFinalMessages(
     chatMessages,
     assistant,
     messageFileItems,
-    chatFileItems
+    chatFileItems,
+    retrievalContext // <-- Now included in ChatPayload
   } = payload
 
   const BUILT_PROMPT = buildBasePrompt(
@@ -55,7 +56,6 @@ export async function buildFinalMessages(
   const PROMPT_TOKENS = encode(chatSettings.prompt).length
 
   let remainingTokens = CHUNK_SIZE - PROMPT_TOKENS
-
   let usedTokens = 0
   usedTokens += PROMPT_TOKENS
 
@@ -90,7 +90,7 @@ export async function buildFinalMessages(
     return chatMessage
   })
 
-  let finalMessages = []
+  let finalMessages: any[] = []
 
   for (let i = processedChatMessages.length - 1; i >= 0; i--) {
     const message = processedChatMessages[i].message
@@ -105,6 +105,7 @@ export async function buildFinalMessages(
     }
   }
 
+  // Build the standard system message with the base prompt
   let tempSystemMessage: Tables<"messages"> = {
     chat_id: "",
     assistant_id: null,
@@ -119,12 +120,31 @@ export async function buildFinalMessages(
     user_id: ""
   }
 
+  // PATCH: If retrievalContext is present, inject it as an additional system message (at the front)
+  if (retrievalContext && retrievalContext.trim().length > 0) {
+    const retrievalSystemMessage: Tables<"messages"> = {
+      chat_id: "",
+      assistant_id: null,
+      content: retrievalContext,
+      created_at: "",
+      id: (processedChatMessages.length + 1) + "",
+      image_paths: [],
+      model: payload.chatSettings.model,
+      role: "system",
+      sequence_number: processedChatMessages.length + 1,
+      updated_at: "",
+      user_id: ""
+    }
+    finalMessages.unshift(retrievalSystemMessage)
+  }
+
+  // Always inject the system message from BUILT_PROMPT next
   finalMessages.unshift(tempSystemMessage)
 
   finalMessages = finalMessages.map(message => {
     let content
 
-    if (message.image_paths.length > 0) {
+    if (message.image_paths && message.image_paths.length > 0) {
       content = [
         {
           type: "text",
@@ -161,7 +181,7 @@ export async function buildFinalMessages(
     }
   })
 
-  if (messageFileItems.length > 0) {
+  if (messageFileItems && messageFileItems.length > 0) {
     const retrievalText = buildRetrievalText(messageFileItems)
 
     finalMessages[finalMessages.length - 1] = {
