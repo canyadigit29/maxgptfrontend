@@ -43,6 +43,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           assistant_id: string
           collection_id: string
           created_at?: string
@@ -50,6 +51,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           assistant_id?: string
           collection_id?: string
           created_at?: string
@@ -89,6 +91,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           assistant_id: string
           created_at?: string
           file_id: string
@@ -96,6 +99,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           assistant_id?: string
           created_at?: string
           file_id?: string
@@ -135,6 +139,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           assistant_id: string
           created_at?: string
           tool_id: string
@@ -142,6 +147,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           assistant_id?: string
           created_at?: string
           tool_id?: string
@@ -181,6 +187,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           assistant_id: string
           created_at?: string
           updated_at?: string | null
@@ -188,6 +195,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+      relevant_date?: string | null;
           assistant_id?: string
           created_at?: string
           updated_at?: string | null
@@ -238,6 +246,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           context_length: number
           created_at?: string
           description: string
@@ -256,6 +265,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           context_length?: number
           created_at?: string
           description?: string
@@ -299,6 +309,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           chat_id: string
           created_at?: string
           file_id: string
@@ -306,6 +317,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           chat_id?: string
           created_at?: string
           file_id?: string
@@ -356,6 +368,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           assistant_id?: string | null
           context_length: number
           created_at?: string
@@ -374,6 +387,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+      relevant_date?: string | null;
           assistant_id?: string | null
           context_length?: number
           created_at?: string
@@ -431,6 +445,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           collection_id: string
           created_at?: string
           file_id: string
@@ -438,6 +453,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           collection_id?: string
           created_at?: string
           file_id?: string
@@ -477,6 +493,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           collection_id: string
           created_at?: string
           updated_at?: string | null
@@ -484,6 +501,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+      relevant_date?: string | null;
           collection_id?: string
           created_at?: string
           updated_at?: string | null
@@ -526,6 +544,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           created_at?: string
           description: string
           folder_id?: string | null
@@ -536,6 +555,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           created_at?: string
           description?: string
           folder_id?: string | null
@@ -576,6 +596,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           content: string
           created_at?: string
           file_id: string
@@ -588,6 +609,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           content?: string
           created_at?: string
           file_id?: string
@@ -625,6 +647,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           created_at?: string
           file_id: string
           updated_at?: string | null
@@ -632,6 +655,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+      relevant_date?: string | null;
           created_at?: string
           file_id?: string
           updated_at?: string | null
@@ -678,6 +702,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           created_at?: string
           description: string
           file_path: string
@@ -692,6 +717,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           created_at?: string
           description?: string
           file_path?: string
@@ -734,6 +760,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           created_at?: string
           description: string
           id?: string
@@ -744,6 +771,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+      relevant_date?: string | null;
           created_at?: string
           description?: string
           id?: string
@@ -779,6 +807,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           created_at?: string
           file_item_id: string
           message_id: string
@@ -786,6 +815,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           created_at?: string
           file_item_id?: string
           message_id?: string
@@ -831,6 +861,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           assistant_id?: string | null
           chat_id: string
           content: string
@@ -844,6 +875,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           assistant_id?: string | null
           chat_id?: string
           content?: string
@@ -889,6 +921,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           created_at?: string
           model_id: string
           updated_at?: string | null
@@ -896,6 +929,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+      relevant_date?: string | null;
           created_at?: string
           model_id?: string
           updated_at?: string | null
@@ -942,6 +976,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           api_key: string
           base_url: string
           context_length?: number
@@ -956,6 +991,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           api_key?: string
           base_url?: string
           context_length?: number
@@ -995,6 +1031,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           created_at?: string
           preset_id: string
           updated_at?: string | null
@@ -1002,6 +1039,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+      relevant_date?: string | null;
           created_at?: string
           preset_id?: string
           updated_at?: string | null
@@ -1051,6 +1089,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           context_length: number
           created_at?: string
           description: string
@@ -1068,6 +1107,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           context_length?: number
           created_at?: string
           description?: string
@@ -1131,6 +1171,7 @@ export type Database = {
           username: string
         }
         Insert: {
+      relevant_date?: string | null;
           anthropic_api_key?: string | null
           azure_openai_35_turbo_id?: string | null
           azure_openai_45_turbo_id?: string | null
@@ -1159,6 +1200,7 @@ export type Database = {
           username: string
         }
         Update: {
+      relevant_date?: string | null;
           anthropic_api_key?: string | null
           azure_openai_35_turbo_id?: string | null
           azure_openai_45_turbo_id?: string | null
@@ -1205,6 +1247,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           created_at?: string
           prompt_id: string
           updated_at?: string | null
@@ -1212,6 +1255,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+      relevant_date?: string | null;
           created_at?: string
           prompt_id?: string
           updated_at?: string | null
@@ -1254,6 +1298,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           content: string
           created_at?: string
           folder_id?: string | null
@@ -1264,6 +1309,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           content?: string
           created_at?: string
           folder_id?: string | null
@@ -1299,6 +1345,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           created_at?: string
           tool_id: string
           updated_at?: string | null
@@ -1306,6 +1353,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+      relevant_date?: string | null;
           created_at?: string
           tool_id?: string
           updated_at?: string | null
@@ -1351,6 +1399,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           created_at?: string
           custom_headers?: Json
           description: string
@@ -1364,6 +1413,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           created_at?: string
           custom_headers?: Json
           description?: string
@@ -1414,6 +1464,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+      relevant_date?: string | null;
           created_at?: string
           default_context_length: number
           default_model: string
@@ -1433,6 +1484,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+      relevant_date?: string | null;
           created_at?: string
           default_context_length?: number
           default_model?: string
@@ -1574,6 +1626,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+      relevant_date?: string | null;
           allowed_mime_types?: string[] | null
           avif_autodetection?: boolean | null
           created_at?: string | null
@@ -1586,6 +1639,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+      relevant_date?: string | null;
           allowed_mime_types?: string[] | null
           avif_autodetection?: boolean | null
           created_at?: string | null
@@ -1607,12 +1661,14 @@ export type Database = {
           name: string
         }
         Insert: {
+      relevant_date?: string | null;
           executed_at?: string | null
           hash: string
           id: number
           name: string
         }
         Update: {
+      relevant_date?: string | null;
           executed_at?: string | null
           hash?: string
           id?: number
@@ -1635,6 +1691,7 @@ export type Database = {
           version: string | null
         }
         Insert: {
+      relevant_date?: string | null;
           bucket_id?: string | null
           created_at?: string | null
           id?: string
@@ -1648,6 +1705,7 @@ export type Database = {
           version?: string | null
         }
         Update: {
+      relevant_date?: string | null;
           bucket_id?: string | null
           created_at?: string | null
           id?: string
