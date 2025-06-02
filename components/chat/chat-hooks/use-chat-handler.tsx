@@ -17,10 +17,10 @@ import {
   handleCreateMessages,
   handleHostedChat,
   handleLocalChat,
-  performSemanticSearch, // PATCH: correct import path!
+  handleRetrieval,
   processResponse,
   validateChatSettings
-} from "./chat-helpers" // PATCH: use relative path to chat-helpers.ts
+} from "../chat-helpers"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -233,20 +233,19 @@ export const useChatHandler = () => {
 
       let retrievedFileItems: Tables<"file_items">[] = []
 
-      // PATCH: Use backend semantic search for "search my", ignore file attachments
       if (
-        useRetrieval &&
-        /search my/i.test(messageContent)
+        (newMessageFiles.length > 0 || chatFiles.length > 0) &&
+        useRetrieval
       ) {
         setToolInUse("retrieval")
-        // You can add more filters here if needed
-        const searchResults = await performSemanticSearch({
-          query: messageContent,
-          user_id: profile?.id || "",
-          top_k: sourceCount
-        })
-        // Map search results to your schema if needed:
-        retrievedFileItems = searchResults
+
+        retrievedFileItems = await handleRetrieval(
+          userInput,
+          newMessageFiles,
+          chatFiles,
+          chatSettings!.embeddingsProvider,
+          sourceCount
+        )
       }
 
       const { tempUserChatMessage, tempAssistantChatMessage } =
