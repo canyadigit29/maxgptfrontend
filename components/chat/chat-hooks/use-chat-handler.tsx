@@ -233,20 +233,24 @@ export const useChatHandler = () => {
 
       let retrievedFileItems: Tables<"file_items">[] = []
 
-      if (
-        (newMessageFiles.length > 0 || chatFiles.length > 0) &&
-        useRetrieval
-      ) {
-        setToolInUse("retrieval")
+     if (
+  (
+    newMessageFiles.length > 0 ||
+    chatFiles.length > 0 ||
+    messageContent.trim().toLowerCase().startsWith("run search")
+  ) &&
+  useRetrieval
+) {
+  setToolInUse("retrieval")
 
-        retrievedFileItems = await handleRetrieval(
-          userInput,
-          newMessageFiles,
-          chatFiles,
-          chatSettings!.embeddingsProvider,
-          sourceCount
-        )
-      }
+  retrievedFileItems = await handleRetrieval(
+    userInput,
+    newMessageFiles,
+    chatFiles,
+    chatSettings!.embeddingsProvider,
+    sourceCount
+  )
+}
 
       const { tempUserChatMessage, tempAssistantChatMessage } =
         createTempMessages(
