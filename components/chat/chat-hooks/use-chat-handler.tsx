@@ -67,7 +67,6 @@ export const useChatHandler = () => {
     isPromptPickerOpen,
     isFilePickerOpen,
     isToolPickerOpen,
-    // PATCH: Add these two lines
     allFiles,
     setAllFiles
   } = useContext(ChatbotUIContext)
@@ -144,7 +143,14 @@ export const useChatHandler = () => {
           file: null
         }))
       )
-      setAllFiles(allFilesLocal) // PATCH: update global allFiles
+      setAllFiles(
+        allFilesLocal.map(file => ({
+          id: file.id,
+          name: file.name,
+          type: file.type,
+          file: null
+        }))
+      )
 
       if (allFilesLocal.length > 0) setShowFilesDisplay(true)
     } else if (selectedPreset) {
