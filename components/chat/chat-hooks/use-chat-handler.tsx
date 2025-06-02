@@ -188,6 +188,7 @@ export const useChatHandler = () => {
     }
   }
 
+  // PATCHED: "run search" tool logic inserted here
   const handleSendMessage = async (
     messageContent: string,
     chatMessages: ChatMessage[],
@@ -233,28 +234,45 @@ export const useChatHandler = () => {
 
       let retrievedFileItems: Tables<"file_items">[] = []
 
-     if (
-  (
-    newMessageFiles.length > 0 ||
-    chatFiles.length > 0 ||
-    messageContent.trim().toLowerCase().startsWith("run search")
-  ) &&
-  useRetrieval
-) {
-  setToolInUse("retrieval")
+      // --- "run search" tool logic start ---
+      let runSearchTriggered = false
+      let searchQuery = messageContent
+      let retrievalResults = []
 
-  retrievedFileItems = await handleRetrieval(
-    userInput,
-    newMessageFiles,
-    chatFiles,
-    chatSettings!.embeddingsProvider,
-    sourceCount
-  )
-}
+      if (messageContent.trim().toLowerCase().startsWith("run search")) {
+        runSearchTriggered = true
+        // Remove "run search" and extract query
+        searchQuery = messageContent.replace(/^run search\s*/i, "")
+        setToolInUse("retrieval")
+        try {
+          retrievalResults = await handleRetrieval(
+            searchQuery,
+            newMessageFiles, // or [] if you want to ignore attached files
+            chatFiles,
+            chatSettings!.embeddingsProvider,
+            sourceCount
+          )
+        } catch (e) {
+          // Optional: error handling
+        }
+      }
 
+      // Format as system message for context injection
+      let retrievalContext = ""
+      if (runSearchTriggered && retrievalResults && retrievalResults.length > 0) {
+        retrievalContext =
+          "Relevant knowledge from your files:\n" +
+          retrievalResults
+            .map((item, idx) => `(${idx + 1}) ${item.content}`)
+            .join("\n---\n") +
+          "\n"
+      }
+      // --- "run search" tool logic end ---
+
+      // Use as system prompt in payload (for buildFinalMessages)
       const { tempUserChatMessage, tempAssistantChatMessage } =
         createTempMessages(
-          messageContent,
+          runSearchTriggered ? searchQuery : messageContent,
           chatMessages,
           chatSettings!,
           b64Images,
@@ -271,7 +289,9 @@ export const useChatHandler = () => {
           : [...chatMessages, tempUserChatMessage],
         assistant: selectedChat?.assistant_id ? selectedAssistant : null,
         messageFileItems: retrievedFileItems,
-        chatFileItems: chatFileItems
+        chatFileItems: chatFileItems,
+        // If you want, add retrievalContext to payload for buildFinalMessages
+        retrievalContext: retrievalContext
       }
 
       let generatedText = ""
