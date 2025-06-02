@@ -241,7 +241,7 @@ export const useChatHandler = () => {
     chatFiles.length > 0 ||
     messageContent.trim().toLowerCase().startsWith("run search")
   ) &&
-  useRetrieval
+  // useRetrieval, ← ❌ remove or comment this out
 ) {
   setToolInUse("retrieval")
 
