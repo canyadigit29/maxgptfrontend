@@ -290,6 +290,8 @@ export const useChatHandler = () => {
         assistant: selectedChat?.assistant_id ? selectedAssistant : null,
         messageFileItems: retrievedFileItems,
         chatFileItems: chatFileItems,
+        // If you want, add retrievalContext to payload for buildFinalMessages
+        retrievalContext: retrievalContext
       }
 
       let generatedText = ""
