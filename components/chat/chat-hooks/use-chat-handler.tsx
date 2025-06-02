@@ -56,8 +56,7 @@ export const useChatHandler = () => {
     chatFileItems,
     setChatFileItems,
     setToolInUse,
-    useRetrieval,
-    sourceCount,
+        sourceCount,
     setIsPromptPickerOpen,
     setIsFilePickerOpen,
     selectedTools,
@@ -68,8 +67,6 @@ export const useChatHandler = () => {
     isFilePickerOpen,
     isToolPickerOpen
   } = useContext(ChatbotUIContext)
-
-  const useRetrieval = true; // forced on for testing
 
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -241,7 +238,7 @@ export const useChatHandler = () => {
     chatFiles.length > 0 ||
     messageContent.trim().toLowerCase().startsWith("run search")
   ) &&
-  // useRetrieval, ← ❌ remove or comment this out
+  useRetrieval
 ) {
   setToolInUse("retrieval")
 
