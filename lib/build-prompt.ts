@@ -150,7 +150,7 @@ export async function buildFinalMessages(
           type: "text",
           text: message.content
         },
-        ...message.image_paths.map(path => {
+        ...message.image_paths.map((path: string) => {
           let formedUrl = ""
 
           if (path.startsWith("data")) {
