@@ -68,6 +68,8 @@ export const useChatHandler = () => {
     isToolPickerOpen
   } = useContext(ChatbotUIContext)
 
+  const useRetrieval = true; // ✅ Forced on for testing
+
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
