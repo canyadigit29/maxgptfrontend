@@ -9,7 +9,7 @@ import { buildFinalMessages } from "@/lib/build-prompt"
 import { Tables } from "@/supabase/types"
 import { ChatMessage, ChatPayload, LLMID, ModelProvider } from "@/types"
 import { useRouter } from "next/navigation"
-import { useContext, useEffect, useRef } from "react"
+import { useContext, useEffect, useRef, useState } from "react"
 import { LLM_LIST } from "../../../lib/models/llm/llm-list"
 import {
   createTempMessages,
@@ -21,14 +21,9 @@ import {
   processResponse,
   validateChatSettings
 } from "../chat-helpers"
-import { createClient } from "@supabase/supabase-js"
 
 export const useChatHandler = () => {
   const router = useRouter()
-  const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!
-  )
 
   const {
     userInput,
@@ -73,7 +68,8 @@ export const useChatHandler = () => {
     isToolPickerOpen
   } = useContext(ChatbotUIContext)
 
-  const useRetrieval = true // ✅ Forced on for testing
+  const [useRetrieval, setUseRetrieval] = useState(false)
+
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -103,6 +99,7 @@ export const useChatHandler = () => {
 
     setSelectedTools([])
     setToolInUse("none")
+    setUseRetrieval(false)
 
     if (selectedAssistant) {
       setChatSettings({
@@ -190,6 +187,10 @@ export const useChatHandler = () => {
       setIsFilePickerOpen(false)
       setNewMessageImages([])
 
+      if (messageContent.trim().toLowerCase().startsWith("run search")) {
+        setUseRetrieval(true)
+      }
+
       const newAbortController = new AbortController()
       setAbortController(newAbortController)
 
@@ -221,13 +222,7 @@ export const useChatHandler = () => {
 
       let retrievedFileItems: Tables<"file_items">[] = []
 
-      const messageTriggersSearch =
-        (newMessageFiles.length > 0 ||
-          chatFiles.length > 0 ||
-          messageContent.trim().toLowerCase().startsWith("run search")) &&
-        useRetrieval
-
-      if (messageTriggersSearch) {
+      if (useRetrieval) {
         setToolInUse("retrieval")
 
         retrievedFileItems = await handleRetrieval(
@@ -249,17 +244,6 @@ export const useChatHandler = () => {
           setChatMessages,
           selectedAssistant
         )
-
-      if (messageTriggersSearch) {
-        await supabaseAdmin
-          .from("messages")
-          .update({
-            is_query_embedding: true,
-            query_embedding_started_at: new Date().toISOString(),
-            query_embedding_finished_at: new Date().toISOString()
-          })
-          .eq("id", tempUserChatMessage.message.id)
-      }
 
       let payload: ChatPayload = {
         chatSettings: chatSettings!,
@@ -414,7 +398,6 @@ export const useChatHandler = () => {
 
   return {
     chatInputRef,
-    prompt,
     handleNewChat,
     handleSendMessage,
     handleFocusChatInput,
