@@ -1,454 +1,273 @@
-import { ChatbotUIContext } from "@/context/context"
-import { getAssistantCollectionsByAssistantId } from "@/db/assistant-collections"
-import { getAssistantFilesByAssistantId } from "@/db/assistant-files"
-import { getAssistantToolsByAssistantId } from "@/db/assistant-tools"
-import { updateChat } from "@/db/chats"
-import { getCollectionFilesByCollectionId } from "@/db/collection-files"
-import { deleteMessagesIncludingAndAfter } from "@/db/messages"
-import { buildFinalMessages } from "@/lib/build-prompt"
 import { Tables } from "@/supabase/types"
-import { ChatMessage, ChatPayload, LLMID, ModelProvider } from "@/types"
-import { useRouter } from "next/navigation"
-import { useContext, useEffect, useRef } from "react"
-import { LLM_LIST } from "../../../lib/models/llm/llm-list"
 import {
-  createTempMessages,
-  handleCreateChat,
-  handleCreateMessages,
-  handleHostedChat,
-  handleLocalChat,
-  handleRetrieval,
-  processResponse,
-  validateChatSettings
-} from "../chat-helpers"
+  ChatFile,
+  ChatMessage,
+  ChatSettings,
+  LLM,
+  MessageImage,
+  OpenRouterLLM,
+  WorkspaceImage
+} from "@/types"
+import { AssistantImage } from "@/types/images/assistant-image"
+import { VALID_ENV_KEYS } from "@/types/valid-keys"
+import { Dispatch, SetStateAction, createContext, useState } from "react"
 
-export const useChatHandler = () => {
-  const router = useRouter()
+interface ChatbotUIContext {
+  // PROFILE STORE
+  profile: Tables<"profiles"> | null
+  setProfile: Dispatch<SetStateAction<Tables<"profiles"> | null>>
 
-  const {
-    userInput,
-    chatFiles,
-    setUserInput,
-    setNewMessageImages,
-    profile,
-    setIsGenerating,
-    setChatMessages,
-    setFirstTokenReceived,
-    selectedChat,
-    selectedWorkspace,
-    setSelectedChat,
-    setChats,
-    setSelectedTools,
-    availableLocalModels,
-    availableOpenRouterModels,
-    abortController,
-    setAbortController,
-    chatSettings,
-    newMessageImages,
-    selectedAssistant,
-    chatMessages,
-    chatImages,
-    setChatImages,
-    setChatFiles,
-    setNewMessageFiles,
-    setShowFilesDisplay,
-    newMessageFiles,
-    chatFileItems,
-    setChatFileItems,
-    setToolInUse,
-    useRetrieval,
-    sourceCount,
-    setIsPromptPickerOpen,
-    setIsFilePickerOpen,
-    selectedTools,
-    selectedPreset,
-    setChatSettings,
-    models,
-    isPromptPickerOpen,
-    isFilePickerOpen,
-    isToolPickerOpen,
-    allFiles,
-    setAllFiles
-  } = useContext(ChatbotUIContext)
+  // ITEMS STORE
+  assistants: Tables<"assistants">[]
+  setAssistants: Dispatch<SetStateAction<Tables<"assistants">[]>>
+  collections: Tables<"collections">[]
+  setCollections: Dispatch<SetStateAction<Tables<"collections">[]>>
+  chats: Tables<"chats">[]
+  setChats: Dispatch<SetStateAction<Tables<"chats">[]>>
+  files: Tables<"files">[]
+  setFiles: Dispatch<SetStateAction<Tables<"files">[]>>
+  folders: Tables<"folders">[]
+  setFolders: Dispatch<SetStateAction<Tables<"folders">[]>>
+  models: Tables<"models">[]
+  setModels: Dispatch<SetStateAction<Tables<"models">[]>>
+  presets: Tables<"presets">[]
+  setPresets: Dispatch<SetStateAction<Tables<"presets">[]>>
+  prompts: Tables<"prompts">[]
+  setPrompts: Dispatch<SetStateAction<Tables<"prompts">[]>>
+  tools: Tables<"tools">[]
+  setTools: Dispatch<SetStateAction<Tables<"tools">[]>>
+  workspaces: Tables<"workspaces">[]
+  setWorkspaces: Dispatch<SetStateAction<Tables<"workspaces">[]>>
 
-  const chatInputRef = useRef<HTMLTextAreaElement>(null)
+  // MODELS STORE
+  envKeyMap: Record<string, VALID_ENV_KEYS>
+  setEnvKeyMap: Dispatch<SetStateAction<Record<string, VALID_ENV_KEYS>>>
+  availableHostedModels: LLM[]
+  setAvailableHostedModels: Dispatch<SetStateAction<LLM[]>>
+  availableLocalModels: LLM[]
+  setAvailableLocalModels: Dispatch<SetStateAction<LLM[]>>
+  availableOpenRouterModels: OpenRouterLLM[]
+  setAvailableOpenRouterModels: Dispatch<SetStateAction<OpenRouterLLM[]>>
 
-  useEffect(() => {
-    if (!isPromptPickerOpen || !isFilePickerOpen || !isToolPickerOpen) {
-      chatInputRef.current?.focus()
-    }
-  }, [isPromptPickerOpen, isFilePickerOpen, isToolPickerOpen])
+  // WORKSPACE STORE
+  selectedWorkspace: Tables<"workspaces"> | null
+  setSelectedWorkspace: Dispatch<SetStateAction<Tables<"workspaces"> | null>>
+  workspaceImages: WorkspaceImage[]
+  setWorkspaceImages: Dispatch<SetStateAction<WorkspaceImage[]>>
 
-  const handleNewChat = async () => {
-    if (!selectedWorkspace) return
+  // PRESET STORE
+  selectedPreset: Tables<"presets"> | null
+  setSelectedPreset: Dispatch<SetStateAction<Tables<"presets"> | null>>
 
-    setUserInput("")
-    setChatMessages([])
-    setSelectedChat(null)
-    setChatFileItems([])
+  // ASSISTANT STORE
+  selectedAssistant: Tables<"assistants"> | null
+  setSelectedAssistant: Dispatch<SetStateAction<Tables<"assistants"> | null>>
+  assistantImages: AssistantImage[]
+  setAssistantImages: Dispatch<SetStateAction<AssistantImage[]>>
+  openaiAssistants: any[]
+  setOpenaiAssistants: Dispatch<SetStateAction<any[]>>
 
-    setIsGenerating(false)
-    setFirstTokenReceived(false)
+  // PASSIVE CHAT STORE
+  userInput: string
+  setUserInput: Dispatch<SetStateAction<string>>
+  chatMessages: ChatMessage[]
+  setChatMessages: Dispatch<SetStateAction<ChatMessage[]>>
+  chatSettings: ChatSettings | null
+  setChatSettings: Dispatch<SetStateAction<ChatSettings>>
+  selectedChat: Tables<"chats"> | null
+  setSelectedChat: Dispatch<SetStateAction<Tables<"chats"> | null>>
+  chatFileItems: Tables<"file_items">[]
+  setChatFileItems: Dispatch<SetStateAction<Tables<"file_items">[]>>
 
-    setChatFiles([])
-    setChatImages([])
-    setNewMessageFiles([])
-    setNewMessageImages([])
-    setShowFilesDisplay(false)
-    setIsPromptPickerOpen(false)
-    setIsFilePickerOpen(false)
+  // ACTIVE CHAT STORE
+  abortController: AbortController | null
+  setAbortController: Dispatch<SetStateAction<AbortController | null>>
+  firstTokenReceived: boolean
+  setFirstTokenReceived: Dispatch<SetStateAction<boolean>>
+  isGenerating: boolean
+  setIsGenerating: Dispatch<SetStateAction<boolean>>
 
-    setSelectedTools([])
-    setToolInUse("none")
+  // CHAT INPUT COMMAND STORE
+  isPromptPickerOpen: boolean
+  setIsPromptPickerOpen: Dispatch<SetStateAction<boolean>>
+  slashCommand: string
+  setSlashCommand: Dispatch<SetStateAction<string>>
+  isFilePickerOpen: boolean
+  setIsFilePickerOpen: Dispatch<SetStateAction<boolean>>
+  hashtagCommand: string
+  setHashtagCommand: Dispatch<SetStateAction<string>>
+  isToolPickerOpen: boolean
+  setIsToolPickerOpen: Dispatch<SetStateAction<boolean>>
+  toolCommand: string
+  setToolCommand: Dispatch<SetStateAction<string>>
+  focusPrompt: boolean
+  setFocusPrompt: Dispatch<SetStateAction<boolean>>
+  focusFile: boolean
+  setFocusFile: Dispatch<SetStateAction<boolean>>
+  focusTool: boolean
+  setFocusTool: Dispatch<SetStateAction<boolean>>
+  focusAssistant: boolean
+  setFocusAssistant: Dispatch<SetStateAction<boolean>>
+  atCommand: string
+  setAtCommand: Dispatch<SetStateAction<string>>
+  isAssistantPickerOpen: boolean
+  setIsAssistantPickerOpen: Dispatch<SetStateAction<boolean>>
 
-    if (selectedAssistant) {
-      setChatSettings({
-        model: selectedAssistant.model as LLMID,
-        prompt: selectedAssistant.prompt,
-        temperature: selectedAssistant.temperature,
-        contextLength: selectedAssistant.context_length,
-        includeProfileContext: selectedAssistant.include_profile_context,
-        includeWorkspaceInstructions:
-          selectedAssistant.include_workspace_instructions,
-        embeddingsProvider: selectedAssistant.embeddings_provider as
-          | "openai"
-          | "local"
-      })
+  // ATTACHMENTS STORE
+  chatFiles: ChatFile[]
+  setChatFiles: Dispatch<SetStateAction<ChatFile[]>>
+  chatImages: MessageImage[]
+  setChatImages: Dispatch<SetStateAction<MessageImage[]>>
+  newMessageFiles: ChatFile[]
+  setNewMessageFiles: Dispatch<SetStateAction<ChatFile[]>>
+  newMessageImages: MessageImage[]
+  setNewMessageImages: Dispatch<SetStateAction<MessageImage[]>>
+  showFilesDisplay: boolean
+  setShowFilesDisplay: Dispatch<SetStateAction<boolean>>
 
-      let allFilesLocal = []
+  // RETRIEVAL STORE
+  useRetrieval: boolean
+  setUseRetrieval: Dispatch<SetStateAction<boolean>>
+  sourceCount: number
+  setSourceCount: Dispatch<SetStateAction<number>>
 
-      const assistantFiles = (
-        await getAssistantFilesByAssistantId(selectedAssistant.id)
-      ).files
-      allFilesLocal = [...assistantFiles]
-      const assistantCollections = (
-        await getAssistantCollectionsByAssistantId(selectedAssistant.id)
-      ).collections
-      for (const collection of assistantCollections) {
-        const collectionFiles = (
-          await getCollectionFilesByCollectionId(collection.id)
-        ).files
-        allFilesLocal = [...allFilesLocal, ...collectionFiles]
-      }
-      const assistantTools = (
-        await getAssistantToolsByAssistantId(selectedAssistant.id)
-      ).tools
+  // TOOL STORE
+  selectedTools: Tables<"tools">[]
+  setSelectedTools: Dispatch<SetStateAction<Tables<"tools">[]>>
+  toolInUse: string
+  setToolInUse: Dispatch<SetStateAction<string>>
 
-      setSelectedTools(assistantTools)
-      setChatFiles(
-        allFilesLocal.map(file => ({
-          id: file.id,
-          name: file.name,
-          type: file.type,
-          file: null
-        }))
-      )
-      setAllFiles(
-        allFilesLocal.map(file => ({
-          id: file.id,
-          name: file.name,
-          type: file.type,
-          file: null
-        }))
-      )
-
-      if (allFilesLocal.length > 0) setShowFilesDisplay(true)
-    } else if (selectedPreset) {
-      setChatSettings({
-        model: selectedPreset.model as LLMID,
-        prompt: selectedPreset.prompt,
-        temperature: selectedPreset.temperature,
-        contextLength: selectedPreset.context_length,
-        includeProfileContext: selectedPreset.include_profile_context,
-        includeWorkspaceInstructions:
-          selectedPreset.include_workspace_instructions,
-        embeddingsProvider: selectedPreset.embeddings_provider as
-          | "openai"
-          | "local"
-      })
-    } else if (selectedWorkspace) {
-      // setChatSettings({
-      //   model: (selectedWorkspace.default_model ||
-      //     "gpt-4-1106-preview") as LLMID,
-      //   prompt:
-      //     selectedWorkspace.default_prompt ||
-      //     "You are a friendly, helpful AI assistant.",
-      //   temperature: selectedWorkspace.default_temperature || 0.5,
-      //   contextLength: selectedWorkspace.default_context_length || 4096,
-      //   includeProfileContext:
-      //     selectedWorkspace.include_profile_context || true,
-      //   includeWorkspaceInstructions:
-      //     selectedWorkspace.include_workspace_instructions || true,
-      //   embeddingsProvider:
-      //     (selectedWorkspace.embeddings_provider as "openai" | "local") ||
-      //     "openai"
-      // })
-    }
-
-    return router.push(`/${selectedWorkspace.id}/chat`)
-  }
-
-  const handleFocusChatInput = () => {
-    chatInputRef.current?.focus()
-  }
-
-  const handleStopMessage = () => {
-    if (abortController) {
-      abortController.abort()
-    }
-  }
-
-  // PATCHED: "run search" tool logic inserted here
-  const handleSendMessage = async (
-    messageContent: string,
-    chatMessages: ChatMessage[],
-    isRegeneration: boolean
-  ) => {
-    const startingInput = messageContent
-
-    try {
-      setUserInput("")
-      setIsGenerating(true)
-      setIsPromptPickerOpen(false)
-      setIsFilePickerOpen(false)
-      setNewMessageImages([])
-
-      const newAbortController = new AbortController()
-      setAbortController(newAbortController)
-
-      const modelData = [
-        ...models.map(model => ({
-          modelId: model.model_id as LLMID,
-          modelName: model.name,
-          provider: "custom" as ModelProvider,
-          hostedId: model.id,
-          platformLink: "",
-          imageInput: false
-        })),
-        ...LLM_LIST,
-        ...availableLocalModels,
-        ...availableOpenRouterModels
-      ].find(llm => llm.modelId === chatSettings?.model)
-
-      validateChatSettings(
-        chatSettings,
-        modelData,
-        profile,
-        selectedWorkspace,
-        messageContent
-      )
-
-      let currentChat = selectedChat ? { ...selectedChat } : null
-
-      const b64Images = newMessageImages.map(image => image.base64)
-
-      let retrievedFileItems: Tables<"file_items">[] = []
-
-      // --- "run search" tool logic start ---
-      let runSearchTriggered = false
-      let searchQuery = messageContent
-      let retrievalResults: any[] = []
-
-      if (messageContent.trim().toLowerCase().startsWith("run search")) {
-        runSearchTriggered = true
-        searchQuery = messageContent.replace(/^run search\s*/i, "")
-        setToolInUse("retrieval")
-        try {
-          retrievalResults = await handleRetrieval(
-            searchQuery,
-            [],
-            allFiles, // PATCH: use allFiles for run search
-            chatSettings!.embeddingsProvider,
-            sourceCount
-          )
-        } catch (e) {
-          // Optional: error handling
-        }
-      }
-
-      // Format as system message for context injection
-      let retrievalContext = ""
-      if (runSearchTriggered && retrievalResults && retrievalResults.length > 0) {
-        retrievalContext =
-          "Relevant knowledge from your files:\n" +
-          retrievalResults
-            .map((item, idx) => `(${idx + 1}) ${item.content}`)
-            .join("\n---\n") +
-          "\n"
-      }
-      // --- "run search" tool logic end ---
-
-      // Use as system prompt in payload (for buildFinalMessages)
-      const { tempUserChatMessage, tempAssistantChatMessage } =
-        createTempMessages(
-          runSearchTriggered ? searchQuery : messageContent,
-          chatMessages,
-          chatSettings!,
-          b64Images,
-          isRegeneration,
-          setChatMessages,
-          selectedAssistant
-        )
-
-      let payload: ChatPayload = {
-        chatSettings: chatSettings!,
-        workspaceInstructions: selectedWorkspace!.instructions || "",
-        chatMessages: isRegeneration
-          ? [...chatMessages]
-          : [...chatMessages, tempUserChatMessage],
-        assistant: selectedChat?.assistant_id ? selectedAssistant : null,
-        messageFileItems: retrievedFileItems,
-        chatFileItems: chatFileItems,
-        retrievalContext // <--- this is now included!
-      }
-
-      let generatedText = ""
-
-      if (selectedTools.length > 0) {
-        setToolInUse("Tools")
-
-        const formattedMessages = await buildFinalMessages(
-          payload,
-          profile!,
-          chatImages
-        )
-
-        const response = await fetch("/api/chat/tools", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            chatSettings: payload.chatSettings,
-            messages: formattedMessages,
-            selectedTools
-          })
-        })
-
-        setToolInUse("none")
-
-        generatedText = await processResponse(
-          response,
-          isRegeneration
-            ? payload.chatMessages[payload.chatMessages.length - 1]
-            : tempAssistantChatMessage,
-          true,
-          newAbortController,
-          setFirstTokenReceived,
-          setChatMessages,
-          setToolInUse
-        )
-      } else {
-        if (modelData!.provider === "ollama") {
-          generatedText = await handleLocalChat(
-            payload,
-            profile!,
-            chatSettings!,
-            tempAssistantChatMessage,
-            isRegeneration,
-            newAbortController,
-            setIsGenerating,
-            setFirstTokenReceived,
-            setChatMessages,
-            setToolInUse
-          )
-        } else {
-          generatedText = await handleHostedChat(
-            payload,
-            profile!,
-            modelData!,
-            tempAssistantChatMessage,
-            isRegeneration,
-            newAbortController,
-            newMessageImages,
-            chatImages,
-            setIsGenerating,
-            setFirstTokenReceived,
-            setChatMessages,
-            setToolInUse
-          )
-        }
-      }
-
-      if (!currentChat) {
-        currentChat = await handleCreateChat(
-          chatSettings!,
-          profile!,
-          selectedWorkspace!,
-          messageContent,
-          selectedAssistant!,
-          newMessageFiles,
-          setSelectedChat,
-          setChats,
-          setChatFiles
-        )
-      } else {
-        const updatedChat = await updateChat(currentChat.id, {
-          updated_at: new Date().toISOString()
-        })
-
-        setChats(prevChats => {
-          const updatedChats = prevChats.map(prevChat =>
-            prevChat.id === updatedChat.id ? updatedChat : prevChat
-          )
-
-          return updatedChats
-        })
-      }
-
-      await handleCreateMessages(
-        chatMessages,
-        currentChat,
-        profile!,
-        modelData!,
-        messageContent,
-        generatedText,
-        newMessageImages,
-        isRegeneration,
-        retrievedFileItems,
-        setChatMessages,
-        setChatFileItems,
-        setChatImages,
-        selectedAssistant
-      )
-
-      setIsGenerating(false)
-      setFirstTokenReceived(false)
-    } catch (error) {
-      setIsGenerating(false)
-      setFirstTokenReceived(false)
-      setUserInput(startingInput)
-    }
-  }
-
-  const handleSendEdit = async (
-    editedContent: string,
-    sequenceNumber: number
-  ) => {
-    if (!selectedChat) return
-
-    await deleteMessagesIncludingAndAfter(
-      selectedChat.user_id,
-      selectedChat.id,
-      sequenceNumber
-    )
-
-    const filteredMessages = chatMessages.filter(
-      chatMessage => chatMessage.message.sequence_number < sequenceNumber
-    )
-
-    setChatMessages(filteredMessages)
-
-    handleSendMessage(editedContent, filteredMessages, false)
-  }
-
-  return {
-    chatInputRef,
-    prompt,
-    handleNewChat,
-    handleSendMessage,
-    handleFocusChatInput,
-    handleStopMessage,
-    handleSendEdit
-  }
+  // GLOBAL ALL FILES STORE
+  allFiles: ChatFile[]
+  setAllFiles: Dispatch<SetStateAction<ChatFile[]>>
 }
+
+export const ChatbotUIContext = createContext<ChatbotUIContext>({
+  // PROFILE STORE
+  profile: null,
+  setProfile: () => {},
+
+  // ITEMS STORE
+  assistants: [],
+  setAssistants: () => {},
+  collections: [],
+  setCollections: () => {},
+  chats: [],
+  setChats: () => {},
+  files: [],
+  setFiles: () => {},
+  folders: [],
+  setFolders: () => {},
+  models: [],
+  setModels: () => {},
+  presets: [],
+  setPresets: () => {},
+  prompts: [],
+  setPrompts: () => {},
+  tools: [],
+  setTools: () => {},
+  workspaces: [],
+  setWorkspaces: () => {},
+
+  // MODELS STORE
+  envKeyMap: {},
+  setEnvKeyMap: () => {},
+  availableHostedModels: [],
+  setAvailableHostedModels: () => {},
+  availableLocalModels: [],
+  setAvailableLocalModels: () => {},
+  availableOpenRouterModels: [],
+  setAvailableOpenRouterModels: () => {},
+
+  // WORKSPACE STORE
+  selectedWorkspace: null,
+  setSelectedWorkspace: () => {},
+  workspaceImages: [],
+  setWorkspaceImages: () => {},
+
+  // PRESET STORE
+  selectedPreset: null,
+  setSelectedPreset: () => {},
+
+  // ASSISTANT STORE
+  selectedAssistant: null,
+  setSelectedAssistant: () => {},
+  assistantImages: [],
+  setAssistantImages: () => {},
+  openaiAssistants: [],
+  setOpenaiAssistants: () => {},
+
+  // PASSIVE CHAT STORE
+  userInput: "",
+  setUserInput: () => {},
+  selectedChat: null,
+  setSelectedChat: () => {},
+  chatMessages: [],
+  setChatMessages: () => {},
+  chatSettings: null,
+  setChatSettings: () => {},
+  chatFileItems: [],
+  setChatFileItems: () => {},
+
+  // ACTIVE CHAT STORE
+  isGenerating: false,
+  setIsGenerating: () => {},
+  firstTokenReceived: false,
+  setFirstTokenReceived: () => {},
+  abortController: null,
+  setAbortController: () => {},
+
+  // CHAT INPUT COMMAND STORE
+  isPromptPickerOpen: false,
+  setIsPromptPickerOpen: () => {},
+  slashCommand: "",
+  setSlashCommand: () => {},
+  isFilePickerOpen: false,
+  setIsFilePickerOpen: () => {},
+  hashtagCommand: "",
+  setHashtagCommand: () => {},
+  isToolPickerOpen: false,
+  setIsToolPickerOpen: () => {},
+  toolCommand: "",
+  setToolCommand: () => {},
+  focusPrompt: false,
+  setFocusPrompt: () => {},
+  focusFile: false,
+  setFocusFile: () => {},
+  focusTool: false,
+  setFocusTool: () => {},
+  focusAssistant: false,
+  setFocusAssistant: () => {},
+  atCommand: "",
+  setAtCommand: () => {},
+  isAssistantPickerOpen: false,
+  setIsAssistantPickerOpen: () => {},
+
+  // ATTACHMENTS STORE
+  chatFiles: [],
+  setChatFiles: () => {},
+  chatImages: [],
+  setChatImages: () => {},
+  newMessageFiles: [],
+  setNewMessageFiles: () => {},
+  newMessageImages: [],
+  setNewMessageImages: () => {},
+  showFilesDisplay: false,
+  setShowFilesDisplay: () => {},
+
+  // RETRIEVAL STORE
+  useRetrieval: false,
+  setUseRetrieval: () => {},
+  sourceCount: 4,
+  setSourceCount: () => {},
+
+  // TOOL STORE
+  selectedTools: [],
+  setSelectedTools: () => {},
+  toolInUse: "none",
+  setToolInUse: () => {},
+
+  // GLOBAL ALL FILES STORE
+  allFiles: [],
+  setAllFiles: () => {}
+})
