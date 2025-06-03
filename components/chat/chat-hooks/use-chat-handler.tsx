@@ -210,7 +210,8 @@ export const useChatHandler = () => {
       // PATCH: Detect 'run search' prompt and use backendRunSearch
       if (messageContent.trim().toLowerCase().startsWith("run search")) {
         if (!profile || !selectedWorkspace) throw new Error("Profile or workspace missing")
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL || "http://localhost:8000/api"
+        // Use the correct backend URL env variable
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api"
         const sessionId = selectedChat?.id || uuidv4()
         const userId = profile.user_id
         // Remove 'run search' prefix for the actual query
