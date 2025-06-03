@@ -509,3 +509,36 @@ export const handleCreateMessages = async (
     setChatMessages(finalChatMessages)
   }
 }
+
+// Debug-enabled helper to call backend_search /chat endpoint for semantic search
+export const handleBackendSearch = async (
+  userPrompt: string,
+  userId: string,
+  sessionId: string
+) => {
+  try {
+    console.debug("[run search] Calling backend_search /chat endpoint", { userPrompt, userId, sessionId })
+    // TODO: Replace with your actual backend_search URL
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL || "https://your-backend-search-url/chat"
+    const response = await fetch(backendUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_prompt: userPrompt,
+        user_id: userId,
+        session_id: sessionId
+      })
+    })
+    if (!response.ok) {
+      console.error("[run search] Backend search failed", response.status, await response.text())
+      throw new Error("Backend search failed")
+    }
+    const data = await response.json()
+    console.debug("[run search] Backend search results", data)
+    // Normalize to array of file_items (retrieved_chunks)
+    return data.retrieved_chunks || []
+  } catch (err) {
+    console.error("[run search] Error in handleBackendSearch", err)
+    return []
+  }
+}

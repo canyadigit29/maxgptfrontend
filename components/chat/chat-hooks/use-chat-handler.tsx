@@ -13,6 +13,7 @@ import { useContext, useEffect, useRef } from "react"
 import { LLM_LIST } from "../../../lib/models/llm/llm-list"
 import {
   createTempMessages,
+  handleBackendSearch,
   handleCreateChat,
   handleCreateMessages,
   handleHostedChat,
@@ -194,51 +195,38 @@ export const useChatHandler = () => {
     isRegeneration: boolean
   ) => {
     const startingInput = messageContent
-
     try {
+      // Debug: log the incoming message
+      console.debug("[chat] handleSendMessage called", { messageContent, isRegeneration })
       setUserInput("")
       setIsGenerating(true)
       setIsPromptPickerOpen(false)
       setIsFilePickerOpen(false)
       setNewMessageImages([])
-
       const newAbortController = new AbortController()
       setAbortController(newAbortController)
 
-      const modelData = [
-        ...models.map(model => ({
-          modelId: model.model_id as LLMID,
-          modelName: model.name,
-          provider: "custom" as ModelProvider,
-          hostedId: model.id,
-          platformLink: "",
-          imageInput: false
-        })),
-        ...LLM_LIST,
-        ...availableLocalModels,
-        ...availableOpenRouterModels
-      ].find(llm => llm.modelId === chatSettings?.model)
-
-      validateChatSettings(
-        chatSettings,
-        modelData,
-        profile,
-        selectedWorkspace,
-        messageContent
-      )
-
-      let currentChat = selectedChat ? { ...selectedChat } : null
-
-      const b64Images = newMessageImages.map(image => image.base64)
-
+      // Detect 'run search' command
+      const isRunSearch = messageContent.trim().toLowerCase().startsWith("run search")
       let retrievedFileItems: Tables<"file_items">[] = []
+      let backendSearchResults: any[] = []
+      let runSearchDebugInfo = {}
 
-      if (
-        (newMessageFiles.length > 0 || chatFiles.length > 0) &&
-        useRetrieval
-      ) {
+      if (isRunSearch) {
+        // Always store the message in chat history (handled below)
+        // Call backend_search /chat endpoint
+        console.debug("[run search] Triggered for message:", messageContent)
+        backendSearchResults = await handleBackendSearch(
+          messageContent,
+          profile?.user_id || "",
+          selectedChat?.id || selectedWorkspace?.id || ""
+        )
+        // Limit to 100 results
+        retrievedFileItems = backendSearchResults.slice(0, 100)
+        runSearchDebugInfo = { backendSearchResultsCount: backendSearchResults.length, usedCount: retrievedFileItems.length }
+        console.debug("[run search] Results processed", runSearchDebugInfo)
+      } else if ((newMessageFiles.length > 0 || chatFiles.length > 0) && useRetrieval) {
         setToolInUse("retrieval")
-
         retrievedFileItems = await handleRetrieval(
           userInput,
           newMessageFiles,
@@ -248,6 +236,7 @@ export const useChatHandler = () => {
         )
       }
 
+      // Move temp message creation and chat pipeline after all retrieval logic
       const { tempUserChatMessage, tempAssistantChatMessage } =
         createTempMessages(
           messageContent,
@@ -270,17 +259,19 @@ export const useChatHandler = () => {
         chatFileItems: chatFileItems
       }
 
+      // For 'run search', skip model/LLM pipeline and just use the results for context
       let generatedText = ""
-
-      if (selectedTools.length > 0) {
+      if (isRunSearch) {
+        // Optionally, you could have the assistant summarize or respond to the search results here
+        generatedText = "[run search completed: results injected, ready for follow-up questions]"
+        console.debug("[run search] Assistant ready for follow-up with injected results.")
+      } else if (selectedTools.length > 0) {
         setToolInUse("Tools")
-
         const formattedMessages = await buildFinalMessages(
           payload,
           profile!,
           chatImages
         )
-
         const response = await fetch("/api/chat/tools", {
           method: "POST",
           headers: {
@@ -292,9 +283,7 @@ export const useChatHandler = () => {
             selectedTools
           })
         })
-
         setToolInUse("none")
-
         generatedText = await processResponse(
           response,
           isRegeneration
@@ -306,38 +295,64 @@ export const useChatHandler = () => {
           setChatMessages,
           setToolInUse
         )
+      } else if (modelData!.provider === "ollama") {
+        generatedText = await handleLocalChat(
+          payload,
+          profile!,
+          chatSettings!,
+          tempAssistantChatMessage,
+          isRegeneration,
+          newAbortController,
+          setIsGenerating,
+          setFirstTokenReceived,
+          setChatMessages,
+          setToolInUse
+        )
       } else {
-        if (modelData!.provider === "ollama") {
-          generatedText = await handleLocalChat(
-            payload,
-            profile!,
-            chatSettings!,
-            tempAssistantChatMessage,
-            isRegeneration,
-            newAbortController,
-            setIsGenerating,
-            setFirstTokenReceived,
-            setChatMessages,
-            setToolInUse
-          )
-        } else {
-          generatedText = await handleHostedChat(
-            payload,
-            profile!,
-            modelData!,
-            tempAssistantChatMessage,
-            isRegeneration,
-            newAbortController,
-            newMessageImages,
-            chatImages,
-            setIsGenerating,
-            setFirstTokenReceived,
-            setChatMessages,
-            setToolInUse
-          )
-        }
+        generatedText = await handleHostedChat(
+          payload,
+          profile!,
+          modelData!,
+          tempAssistantChatMessage,
+          isRegeneration,
+          newAbortController,
+          newMessageImages,
+          chatImages,
+          setIsGenerating,
+          setFirstTokenReceived,
+          setChatMessages,
+          setToolInUse
+        )
       }
 
+      // Only run the rest of the chat pipeline if not 'run search', or after backend results are injected
+      // For 'run search', skip embedding and modelData logic, but still create temp messages and continue pipeline
+      let modelData = [
+        ...models.map((model: any) => ({
+          modelId: model.model_id as LLMID,
+          modelName: model.name,
+          provider: "custom" as ModelProvider,
+          hostedId: model.id,
+          platformLink: "",
+          imageInput: false
+        })),
+        ...LLM_LIST,
+        ...availableLocalModels,
+        ...availableOpenRouterModels
+      ].find((llm: any) => llm.modelId === chatSettings?.model)
+
+      validateChatSettings(
+        chatSettings,
+        modelData,
+        profile,
+        selectedWorkspace,
+        messageContent
+      )
+
+      let currentChat = selectedChat ? { ...selectedChat } : null
+      const b64Images = newMessageImages.map((image: any) => image.base64)
+
+      // Always create or update chat and messages, so context is preserved
       if (!currentChat) {
         currentChat = await handleCreateChat(
           chatSettings!,
@@ -354,16 +369,13 @@ export const useChatHandler = () => {
         const updatedChat = await updateChat(currentChat.id, {
           updated_at: new Date().toISOString()
         })
-
-        setChats(prevChats => {
-          const updatedChats = prevChats.map(prevChat =>
+        setChats((prevChats: any) => {
+          const updatedChats = prevChats.map((prevChat: any) =>
             prevChat.id === updatedChat.id ? updatedChat : prevChat
           )
-
           return updatedChats
         })
       }
-
       await handleCreateMessages(
         chatMessages,
         currentChat,
@@ -379,9 +391,9 @@ export const useChatHandler = () => {
         setChatImages,
         selectedAssistant
       )
-
       setIsGenerating(false)
       setFirstTokenReceived(false)
+      console.debug("[chat] handleSendMessage completed")
     } catch (error) {
       setIsGenerating(false)
       setFirstTokenReceived(false)
