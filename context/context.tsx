@@ -136,10 +136,6 @@ interface ChatbotUIContext {
   setSelectedTools: Dispatch<SetStateAction<Tables<"tools">[]>>
   toolInUse: string
   setToolInUse: Dispatch<SetStateAction<string>>
-
-  // SEARCH RESULTS STORE
-  searchResults: any[]
-  setSearchResults: Dispatch<SetStateAction<any[]>>
 }
 
 export const ChatbotUIContext = createContext<ChatbotUIContext>({
@@ -265,9 +261,5 @@ export const ChatbotUIContext = createContext<ChatbotUIContext>({
   selectedTools: [],
   setSelectedTools: () => {},
   toolInUse: "none",
-  setToolInUse: () => {},
-
-  // SEARCH RESULTS STORE
-  searchResults: [],
-  setSearchResults: () => {}
+  setToolInUse: () => {}
 })

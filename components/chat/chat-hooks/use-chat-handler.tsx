@@ -66,9 +66,7 @@ export const useChatHandler = () => {
     models,
     isPromptPickerOpen,
     isFilePickerOpen,
-    isToolPickerOpen,
-    setSearchResults,
-    searchResults
+    isToolPickerOpen
   } = useContext(ChatbotUIContext)
 
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
@@ -197,80 +195,6 @@ export const useChatHandler = () => {
   ) => {
     const startingInput = messageContent
 
-    // Detect 'run search' command
-    if (messageContent.trim().toLowerCase().startsWith("run search")) {
-      try {
-        setUserInput("")
-        setIsGenerating(true)
-        setIsPromptPickerOpen(false)
-        setIsFilePickerOpen(false)
-        setNewMessageImages([])
-
-        // Extract the search query after 'run search'
-        const searchQuery = messageContent.replace(/^run search:?/i, '').trim()
-        // Call backend search
-        // Use window location or config for backend URL
-        const backendUrl = (window as any).BACKEND_URL || "http://localhost:8000/api"
-        const userId = profile?.user_id || ""
-        const backendSearch = await import("@/lib/backend-search")
-        const results = await backendSearch.backendSemanticSearch({
-          query: searchQuery,
-          userId,
-          backendUrl,
-          use: chatSettings?.embeddingsProvider || "local"
-        })
-        setSearchResults(results)
-
-        // Summarize results for display
-        let summary = "No results found."
-        if (results.length > 0) {
-          summary = `Found ${results.length} relevant document chunk(s):\n\n` +
-            results.slice(0, 5).map((r: any, i: number) => `#${i + 1}: ${r.content?.slice(0, 200) || ""}`).join("\n\n")
-        }
-        // Add summary as assistant message
-        setChatMessages([...chatMessages, {
-          message: {
-            id: Date.now().toString(),
-            role: "assistant",
-            content: summary,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            user_id: userId,
-            chat_id: selectedChat?.id || "",
-            assistant_id: selectedAssistant?.id || null,
-            model: chatSettings?.model || "",
-            sequence_number: chatMessages.length,
-            image_paths: []
-          },
-          fileItems: []
-        }])
-        setIsGenerating(false)
-        setFirstTokenReceived(false)
-        return
-      } catch (error) {
-        setIsGenerating(false)
-        setFirstTokenReceived(false)
-        setUserInput(startingInput)
-        setChatMessages([...chatMessages, {
-          message: {
-            id: Date.now().toString(),
-            role: "assistant",
-            content: "Error running search.",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            user_id: profile?.user_id || "",
-            chat_id: selectedChat?.id || "",
-            assistant_id: selectedAssistant?.id || null,
-            model: chatSettings?.model || "",
-            sequence_number: chatMessages.length,
-            image_paths: []
-          },
-          fileItems: []
-        }])
-        return
-      }
-    }
-
     try {
       setUserInput("")
       setIsGenerating(true)
@@ -343,8 +267,7 @@ export const useChatHandler = () => {
           : [...chatMessages, tempUserChatMessage],
         assistant: selectedChat?.assistant_id ? selectedAssistant : null,
         messageFileItems: retrievedFileItems,
-        chatFileItems: chatFileItems,
-        searchResults: searchResults || []
+        chatFileItems: chatFileItems
       }
 
       let generatedText = ""
