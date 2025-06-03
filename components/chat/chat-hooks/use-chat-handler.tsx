@@ -227,21 +227,11 @@ export const useChatHandler = () => {
           backendUrl
         });
 
-        // Parse retrieved_chunks into file items
-        const fileItems = (result.retrieved_chunks || []).map((chunk: FileItemChunk) => ({
-          id: uuidv4(),
-          file_id: chunk.file_id || uuidv4(), // Ensure file_id is not null
-          content: chunk.content,
-          tokens: chunk.tokens || 0,
-          user_id: profile.user_id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }));
-
+        // Display raw results directly in the chat window
         const assistantMessage = {
           chat_id: sessionId,
           assistant_id: null,
-          content: "Search results retrieved.",
+          content: JSON.stringify(result.retrieved_chunks, null, 2), // Display raw results
           created_at: new Date().toISOString(),
           id: uuidv4(),
           image_paths: [],
@@ -252,20 +242,14 @@ export const useChatHandler = () => {
           user_id: userId
         };
 
-        // Save the assistant's message to the database
-        await createMessage(assistantMessage);
-
-        // Save file items to the database before updating the UI
-        await createFileItems(fileItems);
-
-        // Attach file items to the assistant's message and update UI
+        // Update chat messages with raw results
         setChatMessages([
           ...chatMessages,
           {
             message: assistantMessage,
-            fileItems
+            fileItems: [] // No file items attached
           }
-        ])
+        ]);
 
         // Save the user's query to the database
         const userMessage = {

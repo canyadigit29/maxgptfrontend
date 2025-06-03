@@ -1,3 +1,5 @@
+// This type is no longer needed for raw result display. Consider removing or archiving.
+
 export type FileItemChunk = {
   content: string
   tokens: number
