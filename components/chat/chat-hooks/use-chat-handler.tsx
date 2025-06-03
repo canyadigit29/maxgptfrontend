@@ -212,6 +212,9 @@ export const useChatHandler = () => {
       let backendSearchResults: any[] = []
       let runSearchDebugInfo = {}
 
+      // Move b64Images declaration above its first use
+      const b64Images = newMessageImages.map((image: any) => image.base64)
+
       if (isRunSearch) {
         // Always store the message in chat history (handled below)
         // Call backend_search /chat endpoint
@@ -259,8 +262,24 @@ export const useChatHandler = () => {
         chatFileItems: chatFileItems
       }
 
-      // For 'run search', skip model/LLM pipeline and just use the results for context
+      // Only run the rest of the chat pipeline if not 'run search', or after backend results are injected
+      // For 'run search', skip embedding and modelData logic, but still create temp messages and continue pipeline
+      let modelData = [
+        ...models.map((model: any) => ({
+          modelId: model.model_id as LLMID,
+          modelName: model.name,
+          provider: "custom" as ModelProvider,
+          hostedId: model.id,
+          platformLink: "",
+          imageInput: false
+        })),
+        ...LLM_LIST,
+        ...availableLocalModels,
+        ...availableOpenRouterModels
+      ].find((llm: any) => llm.modelId === chatSettings?.model)
+
       let generatedText = ""
+
       if (isRunSearch) {
         // Optionally, you could have the assistant summarize or respond to the search results here
         generatedText = "[run search completed: results injected, ready for follow-up questions]"
@@ -325,32 +344,8 @@ export const useChatHandler = () => {
         )
       }
 
-      // Only run the rest of the chat pipeline if not 'run search', or after backend results are injected
       // For 'run search', skip embedding and modelData logic, but still create temp messages and continue pipeline
-      let modelData = [
-        ...models.map((model: any) => ({
-          modelId: model.model_id as LLMID,
-          modelName: model.name,
-          provider: "custom" as ModelProvider,
-          hostedId: model.id,
-          platformLink: "",
-          imageInput: false
-        })),
-        ...LLM_LIST,
-        ...availableLocalModels,
-        ...availableOpenRouterModels
-      ].find((llm: any) => llm.modelId === chatSettings?.model)
-
-      validateChatSettings(
-        chatSettings,
-        modelData,
-        profile,
-        selectedWorkspace,
-        messageContent
-      )
-
       let currentChat = selectedChat ? { ...selectedChat } : null
-      const b64Images = newMessageImages.map((image: any) => image.base64)
 
       // Always create or update chat and messages, so context is preserved
       if (!currentChat) {
@@ -414,7 +409,7 @@ export const useChatHandler = () => {
     )
 
     const filteredMessages = chatMessages.filter(
-      chatMessage => chatMessage.message.sequence_number < sequenceNumber
+      (chatMessage: ChatMessage) => chatMessage.message.sequence_number < sequenceNumber
     )
 
     setChatMessages(filteredMessages)
