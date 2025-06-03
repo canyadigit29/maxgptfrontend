@@ -9,6 +9,7 @@ import { buildFinalMessages } from "@/lib/build-prompt"
 import { backendRunSearch } from "@/lib/backend-search"
 import { Tables } from "@/supabase/types"
 import { ChatMessage, ChatPayload, LLMID, ModelProvider } from "@/types"
+import { FileItemChunk } from "@/types/file-item-chunk"
 import { useRouter } from "next/navigation"
 import { useContext, useEffect, useRef } from "react"
 import { LLM_LIST } from "../../../lib/models/llm/llm-list"
@@ -222,14 +223,23 @@ export const useChatHandler = () => {
           sessionId,
           backendUrl
         })
-        // Handle the backend's response (result) as needed, e.g. display in chat
+
+        // Parse retrieved_chunks into file items
+        const fileItems = (result.retrieved_chunks || []).map((chunk: FileItemChunk, index: number) => ({
+          id: `chunk-${index}`,
+          name: chunk.file_name || `Source ${index + 1}`,
+          content: chunk.content,
+          metadata: chunk.metadata || {},
+        }))
+
+        // Attach file items to the assistant's message
         setChatMessages([
           ...chatMessages,
           {
             message: {
               chat_id: sessionId,
               assistant_id: null,
-              content: JSON.stringify(result), // Or format as needed
+              content: "Search results retrieved.", // Main message content
               created_at: new Date().toISOString(),
               id: uuidv4(),
               image_paths: [],
@@ -239,9 +249,10 @@ export const useChatHandler = () => {
               updated_at: new Date().toISOString(),
               user_id: userId
             },
-            fileItems: []
+            fileItems // Attach parsed file items as sources
           }
         ])
+
         setIsGenerating(false)
         setFirstTokenReceived(false)
         return
