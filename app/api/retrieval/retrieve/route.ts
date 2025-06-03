@@ -96,7 +96,25 @@ export async function POST(request: Request) {
 
       chunks = openaiFileItems
     } else if (embeddingsProvider === "local") {
+      const embeddingStart = new Date().toISOString();
       const localEmbedding = await generateLocalEmbedding(userInput)
+
+      // Insert message row for run search queries (local)
+      if (runSearchMode) {
+        await supabaseAdmin.from("messages").insert({
+          user_id: profile.id || profile.user_id,
+          chat_id: "search", // synthetic chat_id for search queries
+          content: userInput,
+          local_embedding: JSON.stringify(localEmbedding),
+          is_query_embedding: true,
+          query_embedding_started_at: embeddingStart,
+          query_embedding_finished_at: new Date().toISOString(),
+          model: "Xenova/all-MiniLM-L6-v2",
+          role: "user",
+          sequence_number: 0,
+          image_paths: []
+        });
+      }
 
       const { data: localFileItems, error: localFileItemsError } =
         await supabaseAdmin.rpc("match_file_items_local", {
