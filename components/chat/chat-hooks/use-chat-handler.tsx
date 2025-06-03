@@ -227,9 +227,11 @@ export const useChatHandler = () => {
         // Parse retrieved_chunks into file items
         const fileItems = (result.retrieved_chunks || []).map((chunk: FileItemChunk, index: number) => ({
           id: `chunk-${index}`,
-          name: chunk.file_name || `Source ${index + 1}`,
           content: chunk.content,
-          metadata: chunk.metadata || {},
+          tokens: chunk.tokens || 0,
+          user_id: profile.user_id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         }))
 
         // Attach file items to the assistant's message
