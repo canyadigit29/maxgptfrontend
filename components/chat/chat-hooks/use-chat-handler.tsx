@@ -25,7 +25,6 @@ import {
 } from "../chat-helpers"
 import { v4 as uuidv4 } from "uuid"
 import { createFileItems } from "@/db/file-items"
-import { createMessage } from "@/db/messages"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -215,58 +214,50 @@ export const useChatHandler = () => {
         if (!profile || !selectedWorkspace) throw new Error("Profile or workspace missing")
         // Use the correct backend URL env variable
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api"
-        let sessionId = selectedChat?.id || uuidv4()
+        const sessionId = selectedChat?.id || uuidv4()
         const userId = profile.user_id
         // Remove 'run search' prefix for the actual query
         const userPrompt = messageContent.replace(/^run search:?/i, '').trim()
-        // Ensure the frontend waits for backend response before updating UI
         const result = await backendRunSearch({
           userPrompt,
           userId,
           sessionId,
           backendUrl
-        });
+        })
 
-        // Display raw results directly in the chat window
-        const assistantMessage = {
-          chat_id: sessionId,
-          assistant_id: null,
-          content: JSON.stringify(result.retrieved_chunks, null, 2), // Display raw results
+        // Parse retrieved_chunks into file items
+        const fileItems = (result.retrieved_chunks || []).map((chunk: FileItemChunk, index: number) => ({
+          id: `chunk-${index}`,
+          content: chunk.content,
+          tokens: chunk.tokens || 0,
+          user_id: profile.user_id,
           created_at: new Date().toISOString(),
-          id: uuidv4(),
-          image_paths: [],
-          model: chatSettings?.model || '',
-          role: "assistant",
-          sequence_number: chatMessages.length,
           updated_at: new Date().toISOString(),
-          user_id: userId
-        };
+        }))
 
-        // Update chat messages with raw results
+        // Attach file items to the assistant's message
         setChatMessages([
           ...chatMessages,
           {
-            message: assistantMessage,
-            fileItems: [] // No file items attached
+            message: {
+              chat_id: sessionId,
+              assistant_id: null,
+              content: "Search results retrieved.", // Main message content
+              created_at: new Date().toISOString(),
+              id: uuidv4(),
+              image_paths: [],
+              model: chatSettings?.model || '',
+              role: "assistant",
+              sequence_number: chatMessages.length,
+              updated_at: new Date().toISOString(),
+              user_id: userId
+            },
+            fileItems // Attach parsed file items as sources
           }
-        ]);
+        ])
 
-        // Save the user's query to the database
-        const userMessage = {
-          chat_id: sessionId,
-          assistant_id: null,
-          content: userPrompt,
-          created_at: new Date().toISOString(),
-          id: uuidv4(),
-          image_paths: [],
-          model: chatSettings?.model || '',
-          role: "user",
-          sequence_number: chatMessages.length,
-          updated_at: new Date().toISOString(),
-          user_id: userId
-        };
-
-        await createMessage(userMessage);
+        // Save file items to the database
+        await createFileItems(fileItems);
 
         setIsGenerating(false)
         setFirstTokenReceived(false)
@@ -404,22 +395,6 @@ export const useChatHandler = () => {
             setToolInUse
           )
         }
-      }
-
-      // Ensure the chat exists in the database
-      if (!selectedChat) {
-        const newChat = await handleCreateChat(
-          chatSettings!,
-          profile!,
-          selectedWorkspace!,
-          userPrompt,
-          selectedAssistant!,
-          [],
-          setSelectedChat,
-          setChats,
-          setChatFiles
-        );
-        sessionId = newChat.id; // Update sessionId with the new chat ID
       }
 
       if (!currentChat) {
