@@ -25,6 +25,7 @@ import {
 } from "../chat-helpers"
 import { v4 as uuidv4 } from "uuid"
 import { createFileItems } from "@/db/file-items"
+import { createMessage } from "@/db/messages"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -236,29 +237,51 @@ export const useChatHandler = () => {
           updated_at: new Date().toISOString(),
         }))
 
+        const assistantMessage = {
+          chat_id: sessionId,
+          assistant_id: null,
+          content: "Search results retrieved.",
+          created_at: new Date().toISOString(),
+          id: uuidv4(),
+          image_paths: [],
+          model: chatSettings?.model || '',
+          role: "assistant",
+          sequence_number: chatMessages.length,
+          updated_at: new Date().toISOString(),
+          user_id: userId
+        };
+
+        // Save the assistant's message to the database
+        await createMessage(assistantMessage);
+
         // Attach file items to the assistant's message
         setChatMessages([
           ...chatMessages,
           {
-            message: {
-              chat_id: sessionId,
-              assistant_id: null,
-              content: "Search results retrieved.", // Main message content
-              created_at: new Date().toISOString(),
-              id: uuidv4(),
-              image_paths: [],
-              model: chatSettings?.model || '',
-              role: "assistant",
-              sequence_number: chatMessages.length,
-              updated_at: new Date().toISOString(),
-              user_id: userId
-            },
-            fileItems // Attach parsed file items as sources
+            message: assistantMessage,
+            fileItems
           }
         ])
 
         // Save file items to the database
         await createFileItems(fileItems);
+
+        // Save the user's query to the database
+        const userMessage = {
+          chat_id: sessionId,
+          assistant_id: null,
+          content: userPrompt,
+          created_at: new Date().toISOString(),
+          id: uuidv4(),
+          image_paths: [],
+          model: chatSettings?.model || '',
+          role: "user",
+          sequence_number: chatMessages.length,
+          updated_at: new Date().toISOString(),
+          user_id: userId
+        };
+
+        await createMessage(userMessage);
 
         setIsGenerating(false)
         setFirstTokenReceived(false)
