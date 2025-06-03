@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     sourceCount: number
   }
 
-  let uniqueFileIds = [...new Set(fileIds)]
+  const uniqueFileIds = [...new Set(fileIds)]
 
   try {
     const supabaseAdmin = createClient<Database>(
@@ -22,30 +22,6 @@ export async function POST(request: Request) {
     )
 
     const profile = await getServerProfile()
-
-    // ------------ NEW LOGIC FOR "run search" -------------
-    let searchFileIds = uniqueFileIds
-
-    if (userInput.trim().toLowerCase().startsWith("run search")) {
-      // Fetch all file ids for this user
-      const { data: allFiles, error: filesError } = await supabaseAdmin
-        .from("files")
-        .select("id")
-        .eq("user_id", profile.user_id)
-
-      if (filesError) {
-        throw filesError
-      }
-
-      // If the user has files, use all their IDs
-      if (allFiles && allFiles.length > 0) {
-        searchFileIds = allFiles.map(f => f.id)
-      } else {
-        // No files for this user, just use empty array
-        searchFileIds = []
-      }
-    }
-    // -----------------------------------------------------
 
     if (embeddingsProvider === "openai") {
       if (profile.use_azure_openai) {
@@ -84,7 +60,7 @@ export async function POST(request: Request) {
         await supabaseAdmin.rpc("match_file_items_openai", {
           query_embedding: openaiEmbedding as any,
           match_count: sourceCount,
-          file_ids: searchFileIds // <-- Use updated file ID list here!
+          file_ids: uniqueFileIds
         })
 
       if (openaiError) {
@@ -99,7 +75,7 @@ export async function POST(request: Request) {
         await supabaseAdmin.rpc("match_file_items_local", {
           query_embedding: localEmbedding as any,
           match_count: sourceCount,
-          file_ids: searchFileIds // <-- Use updated file ID list here too!
+          file_ids: uniqueFileIds
         })
 
       if (localFileItemsError) {
@@ -109,14 +85,15 @@ export async function POST(request: Request) {
       chunks = localFileItems
     }
 
-    const mostSimilarChunks = chunks?.sort((a, b) => b.similarity - a.similarity)
+    const mostSimilarChunks = chunks?.sort(
+      (a, b) => b.similarity - a.similarity
+    )
 
     return new Response(JSON.stringify({ results: mostSimilarChunks }), {
       status: 200
     })
   } catch (error: any) {
-    console.error("Retrieval error:", error)
-    const errorMessage = error.error?.message || error.message || "An unexpected error occurred"
+    const errorMessage = error.error?.message || "An unexpected error occurred"
     const errorCode = error.status || 500
     return new Response(JSON.stringify({ message: errorMessage }), {
       status: errorCode
