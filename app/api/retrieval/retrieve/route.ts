@@ -70,15 +70,17 @@ export async function POST(request: Request) {
       if (runSearchMode) {
         await supabaseAdmin.from("messages").insert({
           user_id: profile.id || profile.user_id,
+          chat_id: "search", // synthetic chat_id for search queries
           content: userInput,
-          embedding: openaiEmbedding,
+          openai_embedding: JSON.stringify(openaiEmbedding),
           is_query_embedding: true,
           query_embedding_started_at: embeddingStart,
           query_embedding_finished_at: new Date().toISOString(),
           model: "text-embedding-3-small",
           role: "user",
-          // Optionally add workspace_id, chat_id, etc. if available
-        })
+          sequence_number: 0,
+          image_paths: []
+        });
       }
 
       const { data: openaiFileItems, error: openaiError } =
