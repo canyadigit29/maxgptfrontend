@@ -215,7 +215,7 @@ export const useChatHandler = () => {
         if (!profile || !selectedWorkspace) throw new Error("Profile or workspace missing")
         // Use the correct backend URL env variable
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api"
-        const sessionId = selectedChat?.id || uuidv4()
+        let sessionId = selectedChat?.id || uuidv4()
         const userId = profile.user_id
         // Remove 'run search' prefix for the actual query
         const userPrompt = messageContent.replace(/^run search:?/i, '').trim()
@@ -420,6 +420,22 @@ export const useChatHandler = () => {
             setToolInUse
           )
         }
+      }
+
+      // Ensure the chat exists in the database
+      if (!selectedChat) {
+        const newChat = await handleCreateChat(
+          chatSettings!,
+          profile!,
+          selectedWorkspace!,
+          userPrompt,
+          selectedAssistant!,
+          [],
+          setSelectedChat,
+          setChats,
+          setChatFiles
+        );
+        sessionId = newChat.id; // Update sessionId with the new chat ID
       }
 
       if (!currentChat) {
