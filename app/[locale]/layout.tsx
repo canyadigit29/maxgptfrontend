@@ -3,7 +3,6 @@ import { GlobalState } from "@/components/utility/global-state"
 import { Providers } from "@/components/utility/providers"
 import TranslationsProvider from "@/components/utility/translations-provider"
 import initTranslations from "@/lib/i18n"
-import { Database } from "@/supabase/types"
 import { createServerClient } from "@supabase/ssr"
 import { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
@@ -71,7 +70,7 @@ export default async function RootLayout({
   params: { locale }
 }: RootLayoutProps) {
   const cookieStore = cookies()
-  const supabase = createServerClient<Database>(
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {

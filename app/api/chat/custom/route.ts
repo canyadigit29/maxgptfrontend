@@ -1,4 +1,3 @@
-import { Database } from "@/supabase/types"
 import { ChatSettings } from "@/types"
 import { createClient } from "@supabase/supabase-js"
 import { OpenAIStream, StreamingTextResponse } from "ai"
@@ -17,7 +16,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const supabaseAdmin = createClient<Database>(
+    const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
