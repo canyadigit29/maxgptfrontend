@@ -226,8 +226,8 @@ export const useChatHandler = () => {
         })
 
         // Parse retrieved_chunks into file items
-        const fileItems = (result.retrieved_chunks || []).map((chunk: FileItemChunk, index: number) => ({
-          id: `chunk-${index}`,
+        const fileItems = (result.retrieved_chunks || []).map((chunk: FileItemChunk) => ({
+          id: uuidv4(),
           content: chunk.content,
           tokens: chunk.tokens || 0,
           user_id: profile.user_id,
