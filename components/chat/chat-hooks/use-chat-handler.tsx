@@ -6,6 +6,7 @@ import { updateChat } from "@/db/chats"
 import { getCollectionFilesByCollectionId } from "@/db/collection-files"
 import { deleteMessagesIncludingAndAfter } from "@/db/messages"
 import { buildFinalMessages } from "@/lib/build-prompt"
+import { backendRunSearch } from "@/lib/backend-search"
 import { Tables } from "@/supabase/types"
 import { ChatMessage, ChatPayload, LLMID, ModelProvider } from "@/types"
 import { useRouter } from "next/navigation"
@@ -21,6 +22,7 @@ import {
   processResponse,
   validateChatSettings
 } from "../chat-helpers"
+import { v4 as uuidv4 } from "uuid"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -204,6 +206,45 @@ export const useChatHandler = () => {
 
       const newAbortController = new AbortController()
       setAbortController(newAbortController)
+
+      // PATCH: Detect 'run search' prompt and use backendRunSearch
+      if (messageContent.trim().toLowerCase().startsWith("run search")) {
+        if (!profile || !selectedWorkspace) throw new Error("Profile or workspace missing")
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL || "http://localhost:8000/api"
+        const sessionId = selectedChat?.id || uuidv4()
+        const userId = profile.user_id
+        // Remove 'run search' prefix for the actual query
+        const userPrompt = messageContent.replace(/^run search:?/i, '').trim()
+        const result = await backendRunSearch({
+          userPrompt,
+          userId,
+          sessionId,
+          backendUrl
+        })
+        // Handle the backend's response (result) as needed, e.g. display in chat
+        setChatMessages([
+          ...chatMessages,
+          {
+            message: {
+              chat_id: sessionId,
+              assistant_id: null,
+              content: JSON.stringify(result), // Or format as needed
+              created_at: new Date().toISOString(),
+              id: uuidv4(),
+              image_paths: [],
+              model: chatSettings?.model || '',
+              role: "assistant",
+              sequence_number: chatMessages.length,
+              updated_at: new Date().toISOString(),
+              user_id: userId
+            },
+            fileItems: []
+          }
+        ])
+        setIsGenerating(false)
+        setFirstTokenReceived(false)
+        return
+      }
 
       const modelData = [
         ...models.map(model => ({
