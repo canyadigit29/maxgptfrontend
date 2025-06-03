@@ -58,12 +58,28 @@ export async function POST(request: Request) {
     }
 
     if (embeddingsProvider === "openai") {
+      const embeddingStart = new Date().toISOString();
       const response = await openai.embeddings.create({
         model: "text-embedding-3-small",
         input: userInput
       })
 
       const openaiEmbedding = response.data.map(item => item.embedding)[0]
+
+      // Insert message row for run search queries
+      if (runSearchMode) {
+        await supabaseAdmin.from("messages").insert({
+          user_id: profile.id || profile.user_id,
+          content: userInput,
+          embedding: openaiEmbedding,
+          is_query_embedding: true,
+          query_embedding_started_at: embeddingStart,
+          query_embedding_finished_at: new Date().toISOString(),
+          model: "text-embedding-3-small",
+          role: "user",
+          // Optionally add workspace_id, chat_id, etc. if available
+        })
+      }
 
       const { data: openaiFileItems, error: openaiError } =
         await supabaseAdmin.rpc("match_file_items_openai", {
