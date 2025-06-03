@@ -13,7 +13,16 @@ export async function POST(request: Request) {
     sourceCount: number
   }
 
-  const uniqueFileIds = [...new Set(fileIds)]
+  // Detect run search mode
+  const runSearchMode = userInput.trim().toLowerCase().startsWith("run search")
+
+  // If run search and no fileIds, search all files for the user
+  let fileIdsForRpc: string[] | undefined = fileIds
+  if (runSearchMode && (!fileIds || fileIds.length === 0)) {
+    fileIdsForRpc = undefined // undefined means search all files for the user in the RPC
+  }
+
+  const uniqueFileIds = [...new Set(fileIdsForRpc)]
 
   try {
     const supabaseAdmin = createClient<Database>(
@@ -60,7 +69,7 @@ export async function POST(request: Request) {
         await supabaseAdmin.rpc("match_file_items_openai", {
           query_embedding: openaiEmbedding as any,
           match_count: sourceCount,
-          file_ids: uniqueFileIds
+          file_ids: fileIdsForRpc
         })
 
       if (openaiError) {
@@ -75,7 +84,7 @@ export async function POST(request: Request) {
         await supabaseAdmin.rpc("match_file_items_local", {
           query_embedding: localEmbedding as any,
           match_count: sourceCount,
-          file_ids: uniqueFileIds
+          file_ids: fileIdsForRpc
         })
 
       if (localFileItemsError) {

@@ -22,6 +22,7 @@ import {
 import React from "react"
 import { toast } from "sonner"
 import { v4 as uuidv4 } from "uuid"
+import { getFileWorkspacesByWorkspaceId } from "@/db/files"
 
 export const validateChatSettings = (
   chatSettings: ChatSettings | null,
@@ -51,18 +52,34 @@ export const validateChatSettings = (
   }
 }
 
+// Helper to get all file IDs for a workspace
+export const getAllFileIdsForWorkspace = async (workspaceId: string) => {
+  const workspace = await getFileWorkspacesByWorkspaceId(workspaceId)
+  if (!workspace || !workspace.files) return []
+  return workspace.files.map((file: any) => file.id)
+}
+
 export const handleRetrieval = async (
   userInput: string,
   newMessageFiles: ChatFile[],
   chatFiles: ChatFile[],
   embeddingsProvider: "openai" | "local",
-  sourceCount: number
+  sourceCount: number,
+  workspaceId?: string // add workspaceId for run search
 ) => {
+  let fileIds = [...newMessageFiles, ...chatFiles].map(file => file.id)
+  let runSearchMode = userInput.trim().toLowerCase().startsWith("run search")
+
+  if (runSearchMode && workspaceId) {
+    // Ignore attached files, get all file IDs for the workspace
+    fileIds = await getAllFileIdsForWorkspace(workspaceId)
+  }
+
   const response = await fetch("/api/retrieval/retrieve", {
     method: "POST",
     body: JSON.stringify({
       userInput,
-      fileIds: [...newMessageFiles, ...chatFiles].map(file => file.id),
+      fileIds,
       embeddingsProvider,
       sourceCount
     })
