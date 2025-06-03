@@ -67,32 +67,45 @@ export const handleRetrieval = async (
   sourceCount: number,
   workspaceId?: string // add workspaceId for run search
 ) => {
+  console.log("[handleRetrieval] called", { userInput, newMessageFiles, chatFiles, embeddingsProvider, sourceCount, workspaceId });
   let fileIds = [...newMessageFiles, ...chatFiles].map(file => file.id)
+  console.log("[handleRetrieval] initial fileIds", fileIds);
   let runSearchMode = userInput.trim().toLowerCase().startsWith("run search")
+  console.log("[handleRetrieval] runSearchMode", runSearchMode);
 
   if (runSearchMode && workspaceId) {
-    // Ignore attached files, get all file IDs for the workspace
+    console.log("[handleRetrieval] runSearchMode true, fetching all file IDs for workspace", workspaceId);
     fileIds = await getAllFileIdsForWorkspace(workspaceId)
+    console.log("[handleRetrieval] all fileIds for workspace", fileIds);
   }
+
+  const requestBody = {
+    userInput,
+    fileIds,
+    embeddingsProvider,
+    sourceCount
+  }
+  console.log("[handleRetrieval] requestBody", requestBody);
 
   const response = await fetch("/api/retrieval/retrieve", {
     method: "POST",
-    body: JSON.stringify({
-      userInput,
-      fileIds,
-      embeddingsProvider,
-      sourceCount
-    })
+    body: JSON.stringify(requestBody)
   })
+
+  console.log("[handleRetrieval] fetch response", response);
 
   if (!response.ok) {
     console.error("Error retrieving:", response)
   }
 
-  const { results } = (await response.json()) as {
+  const json = await response.json();
+  console.log("[handleRetrieval] response.json()", json);
+
+  const { results } = json as {
     results: Tables<"file_items">[]
   }
 
+  console.log("[handleRetrieval] results", results);
   return results
 }
 
