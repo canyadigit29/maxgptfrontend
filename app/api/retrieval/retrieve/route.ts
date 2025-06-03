@@ -1,6 +1,5 @@
 import { generateLocalEmbedding } from "@/lib/generate-local-embedding"
 import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
-import { Database } from "@/supabase/types"
 import { createClient } from "@supabase/supabase-js"
 import OpenAI from "openai"
 
@@ -25,7 +24,7 @@ export async function POST(request: Request) {
   const uniqueFileIds = [...new Set(fileIdsForRpc)]
 
   try {
-    const supabaseAdmin = createClient<Database>(
+    const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
@@ -56,6 +55,8 @@ export async function POST(request: Request) {
         organization: profile.openai_organization_id
       })
     }
+
+    const userId = profile.id || profile.user_id
 
     if (embeddingsProvider === "openai") {
       const embeddingStart = new Date().toISOString();
@@ -88,7 +89,7 @@ export async function POST(request: Request) {
           query_embedding: openaiEmbedding as any,
           match_count: sourceCount,
           file_ids: fileIdsForRpc
-        })
+        } as any)
 
       if (openaiError) {
         throw openaiError
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
           query_embedding: localEmbedding as any,
           match_count: sourceCount,
           file_ids: fileIdsForRpc
-        })
+        } as any)
 
       if (localFileItemsError) {
         throw localFileItemsError
