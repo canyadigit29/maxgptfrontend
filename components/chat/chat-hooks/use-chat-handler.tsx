@@ -219,12 +219,13 @@ export const useChatHandler = () => {
         const userId = profile.user_id
         // Remove 'run search' prefix for the actual query
         const userPrompt = messageContent.replace(/^run search:?/i, '').trim()
+        // Ensure the frontend waits for backend response before updating UI
         const result = await backendRunSearch({
           userPrompt,
           userId,
           sessionId,
           backendUrl
-        })
+        });
 
         // Parse retrieved_chunks into file items
         const fileItems = (result.retrieved_chunks || []).map((chunk: FileItemChunk) => ({
@@ -235,7 +236,7 @@ export const useChatHandler = () => {
           user_id: profile.user_id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        }))
+        }));
 
         const assistantMessage = {
           chat_id: sessionId,
@@ -254,7 +255,10 @@ export const useChatHandler = () => {
         // Save the assistant's message to the database
         await createMessage(assistantMessage);
 
-        // Attach file items to the assistant's message
+        // Save file items to the database before updating the UI
+        await createFileItems(fileItems);
+
+        // Attach file items to the assistant's message and update UI
         setChatMessages([
           ...chatMessages,
           {
@@ -262,9 +266,6 @@ export const useChatHandler = () => {
             fileItems
           }
         ])
-
-        // Save file items to the database
-        await createFileItems(fileItems);
 
         // Save the user's query to the database
         const userMessage = {
