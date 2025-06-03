@@ -1,25 +1,18 @@
-import { generateLocalEmbedding } from "./generate-local-embedding";
 import { getEmbedding } from "./embedding";
 
 export async function backendSemanticSearch({
   query,
   userId,
   backendUrl,
-  use = "local", // "local" or "openai"
   filters = {}
 }: {
   query: string;
   userId: string;
   backendUrl: string;
-  use?: "local" | "openai";
   filters?: Record<string, any>;
 }) {
-  let embedding: number[];
-  if (use === "openai") {
-    embedding = await getEmbedding(query);
-  } else {
-    embedding = await generateLocalEmbedding(query);
-  }
+  // Only use OpenAI embedding
+  const embedding = await getEmbedding(query);
 
   const body = {
     embedding,
