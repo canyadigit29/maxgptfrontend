@@ -24,6 +24,7 @@ import {
   validateChatSettings
 } from "../chat-helpers"
 import { v4 as uuidv4 } from "uuid"
+import { createFileItems } from "@/db/file-items"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -254,6 +255,9 @@ export const useChatHandler = () => {
             fileItems // Attach parsed file items as sources
           }
         ])
+
+        // Save file items to the database
+        await createFileItems(fileItems);
 
         setIsGenerating(false)
         setFirstTokenReceived(false)
