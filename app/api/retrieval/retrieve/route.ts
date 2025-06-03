@@ -1,5 +1,6 @@
 import { generateLocalEmbedding } from "@/lib/generate-local-embedding"
 import { checkApiKey, getServerProfile } from "@/lib/server/server-chat-helpers"
+import { Database } from "@/supabase/types"
 import { createClient } from "@supabase/supabase-js"
 import OpenAI from "openai"
 
@@ -12,19 +13,10 @@ export async function POST(request: Request) {
     sourceCount: number
   }
 
-  // Detect run search mode
-  const runSearchMode = userInput.trim().toLowerCase().startsWith("run search")
-
-  // If run search and no fileIds, search all files for the user
-  let fileIdsForRpc: string[] | undefined = fileIds
-  if (runSearchMode && (!fileIds || fileIds.length === 0)) {
-    fileIdsForRpc = undefined // undefined means search all files for the user in the RPC
-  }
-
-  const uniqueFileIds = [...new Set(fileIdsForRpc)]
+  const uniqueFileIds = [...new Set(fileIds)]
 
   try {
-    const supabaseAdmin = createClient(
+    const supabaseAdmin = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
@@ -56,10 +48,7 @@ export async function POST(request: Request) {
       })
     }
 
-    const userId = profile.id || profile.user_id
-
     if (embeddingsProvider === "openai") {
-      const embeddingStart = new Date().toISOString();
       const response = await openai.embeddings.create({
         model: "text-embedding-3-small",
         input: userInput
@@ -67,29 +56,12 @@ export async function POST(request: Request) {
 
       const openaiEmbedding = response.data.map(item => item.embedding)[0]
 
-      // Insert message row for run search queries
-      if (runSearchMode) {
-        await supabaseAdmin.from("messages").insert({
-          user_id: profile.id || profile.user_id,
-          chat_id: "search", // synthetic chat_id for search queries
-          content: userInput,
-          openai_embedding: JSON.stringify(openaiEmbedding),
-          is_query_embedding: true,
-          query_embedding_started_at: embeddingStart,
-          query_embedding_finished_at: new Date().toISOString(),
-          model: "text-embedding-3-small",
-          role: "user",
-          sequence_number: 0,
-          image_paths: []
-        });
-      }
-
       const { data: openaiFileItems, error: openaiError } =
         await supabaseAdmin.rpc("match_file_items_openai", {
           query_embedding: openaiEmbedding as any,
           match_count: sourceCount,
-          file_ids: fileIdsForRpc
-        } as any)
+          file_ids: uniqueFileIds
+        })
 
       if (openaiError) {
         throw openaiError
@@ -97,32 +69,14 @@ export async function POST(request: Request) {
 
       chunks = openaiFileItems
     } else if (embeddingsProvider === "local") {
-      const embeddingStart = new Date().toISOString();
       const localEmbedding = await generateLocalEmbedding(userInput)
-
-      // Insert message row for run search queries (local)
-      if (runSearchMode) {
-        await supabaseAdmin.from("messages").insert({
-          user_id: profile.id || profile.user_id,
-          chat_id: "search", // synthetic chat_id for search queries
-          content: userInput,
-          local_embedding: JSON.stringify(localEmbedding),
-          is_query_embedding: true,
-          query_embedding_started_at: embeddingStart,
-          query_embedding_finished_at: new Date().toISOString(),
-          model: "Xenova/all-MiniLM-L6-v2",
-          role: "user",
-          sequence_number: 0,
-          image_paths: []
-        });
-      }
 
       const { data: localFileItems, error: localFileItemsError } =
         await supabaseAdmin.rpc("match_file_items_local", {
           query_embedding: localEmbedding as any,
           match_count: sourceCount,
-          file_ids: fileIdsForRpc
-        } as any)
+          file_ids: uniqueFileIds
+        })
 
       if (localFileItemsError) {
         throw localFileItemsError

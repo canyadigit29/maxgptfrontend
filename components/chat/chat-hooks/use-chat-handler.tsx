@@ -233,20 +233,12 @@ export const useChatHandler = () => {
 
       let retrievedFileItems: Tables<"file_items">[] = []
 
-      const runSearchMode = messageContent.trim().toLowerCase().startsWith("run search")
-      if (runSearchMode && selectedWorkspace) {
+      if (
+        (newMessageFiles.length > 0 || chatFiles.length > 0) &&
+        useRetrieval
+      ) {
         setToolInUse("retrieval")
-        // Ignore file attachments, search all files in workspace
-        retrievedFileItems = await handleRetrieval(
-          messageContent,
-          [],
-          [],
-          chatSettings!.embeddingsProvider,
-          sourceCount,
-          selectedWorkspace.id
-        )
-      } else if ((newMessageFiles.length > 0 || chatFiles.length > 0) && useRetrieval) {
-        setToolInUse("retrieval")
+
         retrievedFileItems = await handleRetrieval(
           userInput,
           newMessageFiles,

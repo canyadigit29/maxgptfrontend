@@ -22,7 +22,6 @@ import {
 import React from "react"
 import { toast } from "sonner"
 import { v4 as uuidv4 } from "uuid"
-import { getFileWorkspacesByWorkspaceId } from "@/db/files"
 
 export const validateChatSettings = (
   chatSettings: ChatSettings | null,
@@ -52,60 +51,31 @@ export const validateChatSettings = (
   }
 }
 
-// Helper to get all file IDs for a workspace
-export const getAllFileIdsForWorkspace = async (workspaceId: string) => {
-  const workspace = await getFileWorkspacesByWorkspaceId(workspaceId)
-  if (!workspace || !workspace.files) return []
-  return workspace.files.map((file: any) => file.id)
-}
-
 export const handleRetrieval = async (
   userInput: string,
   newMessageFiles: ChatFile[],
   chatFiles: ChatFile[],
   embeddingsProvider: "openai" | "local",
-  sourceCount: number,
-  workspaceId?: string // add workspaceId for run search
+  sourceCount: number
 ) => {
-  console.log("[handleRetrieval] called", { userInput, newMessageFiles, chatFiles, embeddingsProvider, sourceCount, workspaceId });
-  let fileIds = [...newMessageFiles, ...chatFiles].map(file => file.id)
-  console.log("[handleRetrieval] initial fileIds", fileIds);
-  let runSearchMode = userInput.trim().toLowerCase().startsWith("run search")
-  console.log("[handleRetrieval] runSearchMode", runSearchMode);
-
-  if (runSearchMode && workspaceId) {
-    console.log("[handleRetrieval] runSearchMode true, fetching all file IDs for workspace", workspaceId);
-    fileIds = await getAllFileIdsForWorkspace(workspaceId)
-    console.log("[handleRetrieval] all fileIds for workspace", fileIds);
-  }
-
-  const requestBody = {
-    userInput,
-    fileIds,
-    embeddingsProvider,
-    sourceCount
-  }
-  console.log("[handleRetrieval] requestBody", requestBody);
-
   const response = await fetch("/api/retrieval/retrieve", {
     method: "POST",
-    body: JSON.stringify(requestBody)
+    body: JSON.stringify({
+      userInput,
+      fileIds: [...newMessageFiles, ...chatFiles].map(file => file.id),
+      embeddingsProvider,
+      sourceCount
+    })
   })
-
-  console.log("[handleRetrieval] fetch response", response);
 
   if (!response.ok) {
     console.error("Error retrieving:", response)
   }
 
-  const json = await response.json();
-  console.log("[handleRetrieval] response.json()", json);
-
-  const { results } = json as {
+  const { results } = (await response.json()) as {
     results: Tables<"file_items">[]
   }
 
-  console.log("[handleRetrieval] results", results);
   return results
 }
 
