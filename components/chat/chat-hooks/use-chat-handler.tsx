@@ -210,13 +210,12 @@ export const useChatHandler = () => {
       setAbortController(newAbortController)
 
       // PATCH: Detect 'run search' prompt and use backendRunSearch
+      // Directly display raw retrieved_chunks in the chat window
       if (messageContent.trim().toLowerCase().startsWith("run search")) {
         if (!profile || !selectedWorkspace) throw new Error("Profile or workspace missing")
-        // Use the correct backend URL env variable
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api"
         const sessionId = selectedChat?.id || uuidv4()
         const userId = profile.user_id
-        // Remove 'run search' prefix for the actual query
         const userPrompt = messageContent.replace(/^run search:?/i, '').trim()
         const result = await backendRunSearch({
           userPrompt,
@@ -225,24 +224,14 @@ export const useChatHandler = () => {
           backendUrl
         })
 
-        // Parse retrieved_chunks into file items
-        const fileItems = (result.retrieved_chunks || []).map((chunk: FileItemChunk, index: number) => ({
-          id: `chunk-${index}`,
-          content: chunk.content,
-          tokens: chunk.tokens || 0,
-          user_id: profile.user_id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }))
-
-        // Attach file items to the assistant's message
+        // Display raw retrieved_chunks in the chat window
         setChatMessages([
           ...chatMessages,
           {
             message: {
               chat_id: sessionId,
               assistant_id: null,
-              content: "Search results retrieved.", // Main message content
+              content: result.retrieved_chunks.map(chunk => chunk.content).join('\n\n'),
               created_at: new Date().toISOString(),
               id: uuidv4(),
               image_paths: [],
@@ -251,13 +240,9 @@ export const useChatHandler = () => {
               sequence_number: chatMessages.length,
               updated_at: new Date().toISOString(),
               user_id: userId
-            },
-            fileItems // Attach parsed file items as sources
+            }
           }
         ])
-
-        // Save file items to the database
-        await createFileItems(fileItems);
 
         setIsGenerating(false)
         setFirstTokenReceived(false)
