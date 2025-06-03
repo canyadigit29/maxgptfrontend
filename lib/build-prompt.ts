@@ -44,8 +44,14 @@ export async function buildFinalMessages(
     chatFileItems
   } = payload
 
+  // Inject search results into the system prompt if available
+  let searchResultsText = "";
+  if (payload && payload.searchResults && payload.searchResults.length > 0) {
+    searchResultsText = `\n\nRelevant document results from your last search:\n` +
+      payload.searchResults.slice(0, 5).map((r: any, i: number) => `#${i + 1}: ${r.content?.slice(0, 300) || ""}`).join("\n\n");
+  }
   const BUILT_PROMPT = buildBasePrompt(
-    chatSettings.prompt,
+    chatSettings.prompt + searchResultsText,
     chatSettings.includeProfileContext ? profile.profile_context || "" : "",
     chatSettings.includeWorkspaceInstructions ? workspaceInstructions : "",
     assistant
