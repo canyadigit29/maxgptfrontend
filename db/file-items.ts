@@ -1,5 +1,3 @@
-// This file is no longer needed for raw result display. Consider removing or archiving.
-
 import { supabase } from "@/lib/supabase/browser-client";
 import { TablesInsert } from "@/supabase/types";
 
