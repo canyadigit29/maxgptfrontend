@@ -1,4 +1,7 @@
-import { pipeline } from "@xenova/transformers"
+import { pipeline, env } from "@xenova/transformers"
+
+// Enforce WASM backend for compatibility with Vercel and browser
+env.backends.onnx = "wasm"
 
 export async function generateLocalEmbedding(content: string) {
   const generateEmbedding = await pipeline(
