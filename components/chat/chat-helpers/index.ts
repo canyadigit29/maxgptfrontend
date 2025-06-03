@@ -23,6 +23,12 @@ import React from "react"
 import { toast } from "sonner"
 import { v4 as uuidv4 } from "uuid"
 
+// Update: Retrieval and linking now use document_chunks, not file_items
+// Types and function signatures updated accordingly
+
+// Update type import for document_chunks if available
+// import { Tables as TablesDocumentChunks } from "@/supabase/types" // (if you have a type for document_chunks)
+
 export const validateChatSettings = (
   chatSettings: ChatSettings | null,
   modelData: LLM | undefined,
@@ -72,8 +78,9 @@ export const handleRetrieval = async (
     console.error("Error retrieving:", response)
   }
 
+  // Update: Expecting document_chunks[]
   const { results } = (await response.json()) as {
-    results: Tables<"file_items">[]
+    results: any[] // Tables<"document_chunks">[] if you have a type
   }
 
   return results
@@ -393,11 +400,10 @@ export const handleCreateMessages = async (
   generatedText: string,
   newMessageImages: MessageImage[],
   isRegeneration: boolean,
-  retrievedFileItems: Tables<"file_items">[],
+  // Update: retrievedFileItems is now documentChunks
+  retrievedChunks: any[], // Tables<"document_chunks">[] if you have a type
   setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
-  setChatFileItems: React.Dispatch<
-    React.SetStateAction<Tables<"file_items">[]>
-  >,
+  setChatFileItems: React.Dispatch<React.SetStateAction<any[]>>, // Tables<"document_chunks">[] if you have a type
   setChatImages: React.Dispatch<React.SetStateAction<MessageImage[]>>,
   selectedAssistant: Tables<"assistants"> | null
 ) => {
@@ -477,11 +483,11 @@ export const handleCreateMessages = async (
     })
 
     const createdMessageFileItems = await createMessageFileItems(
-      retrievedFileItems.map(fileItem => {
+      retrievedChunks.map(chunk => {
         return {
           user_id: profile.user_id,
           message_id: createdMessages[1].id,
-          file_item_id: fileItem.id
+          file_item_id: chunk.id // Now using document_chunks.id
         }
       })
     )
@@ -494,15 +500,14 @@ export const handleCreateMessages = async (
       },
       {
         message: createdMessages[1],
-        fileItems: retrievedFileItems.map(fileItem => fileItem.id)
+        fileItems: retrievedChunks.map(chunk => chunk.id)
       }
     ]
 
     setChatFileItems(prevFileItems => {
-      const newFileItems = retrievedFileItems.filter(
-        fileItem => !prevFileItems.some(prevItem => prevItem.id === fileItem.id)
+      const newFileItems = retrievedChunks.filter(
+        chunk => !prevFileItems.some(prevItem => prevItem.id === chunk.id)
       )
-
       return [...prevFileItems, ...newFileItems]
     })
 
@@ -518,7 +523,6 @@ export const handleBackendSearch = async (
 ) => {
   try {
     console.debug("[run search] Calling backend_search /chat endpoint", { userPrompt, userId, sessionId })
-    // TODO: Replace with your actual backend_search URL
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL || "https://your-backend-search-url/chat"
     const response = await fetch(backendUrl, {
       method: "POST",
@@ -535,7 +539,7 @@ export const handleBackendSearch = async (
     }
     const data = await response.json()
     console.debug("[run search] Backend search results", data)
-    // Normalize to array of file_items (retrieved_chunks)
+    // Update: Normalize to array of document_chunks (retrieved_chunks)
     return data.retrieved_chunks || []
   } catch (err) {
     console.error("[run search] Error in handleBackendSearch", err)
