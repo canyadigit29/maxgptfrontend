@@ -43,6 +43,9 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
   const [progress, setProgress] = useState(0)
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
   const [downloadFileName, setDownloadFileName] = useState<string>("")
+  const [selectedEnrichFile, setSelectedEnrichFile] = useState<File | null>(null)
+  const [enrichInstructions, setEnrichInstructions] = useState<string>("")
+  const [showEnrichPrompt, setShowEnrichPrompt] = useState(false)
 
   const {
     isAssistantPickerOpen,
@@ -91,7 +94,7 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
     setTimeout(() => {
       handleFocusChatInput()
     }, 200) // FIX: hacky
-  }, [selectedPreset, selectedAssistant])
+  }, [selectedPreset, selectedAssistant, handleFocusChatInput])
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (!isTyping && event.key === "Enter" && !event.shiftKey) {
@@ -174,7 +177,7 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
     }
   }
 
-  const handleEnrichAgendaUpload = async (file: File) => {
+  const handleEnrichAgendaUpload = async (file: File, instructions: string) => {
     setUploadStatus("uploading")
     setProgress(10)
     setDownloadUrl(null)
@@ -182,6 +185,7 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
     try {
       const formData = new FormData()
       formData.append("file", file)
+      formData.append("instructions", instructions)
       setProgress(20)
       setUploadStatus("processing")
       const fileOpsEnv = process.env.NEXT_PUBLIC_BACKEND_FILEOPS_URL
@@ -220,6 +224,7 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
       toast.error("Failed to enrich agenda file.")
     }
   }
+
   return (
     <>
       <div className="flex flex-col flex-wrap justify-center gap-2">
@@ -288,11 +293,54 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
             type="file"
             onChange={e => {
               if (!e.target.files) return
-              handleEnrichAgendaUpload(e.target.files[0])
+              setSelectedEnrichFile(e.target.files[0])
+              setShowEnrichPrompt(true)
             }}
             accept={filesToAccept}
           />
         </>
+
+        {/* Enrichment instructions prompt */}
+        {showEnrichPrompt && selectedEnrichFile && (
+          <div className="absolute left-1/2 top-1/2 z-50 flex w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-lg border border-gray-300 bg-white p-6 shadow-xl">
+            <div className="mb-1 font-semibold">Provide instructions for enrichment</div>
+            <div className="mb-2 text-xs text-gray-500">Example: &#39;Find all the meeting topics and search for any related information contained in my documents and summarize.&#39;</div>
+            <TextareaAutosize
+              className="mb-2 w-full rounded border p-2"
+              minRows={2}
+              maxRows={6}
+              value={enrichInstructions}
+              onValueChange={setEnrichInstructions}
+              placeholder="Enter your instructions here..."
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                className="rounded bg-gray-200 px-4 py-1 hover:bg-gray-300"
+                onClick={() => {
+                  setShowEnrichPrompt(false)
+                  setSelectedEnrichFile(null)
+                  setEnrichInstructions("")
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded bg-blue-600 px-4 py-1 text-white hover:bg-blue-700"
+                disabled={!enrichInstructions.trim()}
+                onClick={() => {
+                  setShowEnrichPrompt(false)
+                  if (selectedEnrichFile && enrichInstructions.trim()) {
+                    handleEnrichAgendaUpload(selectedEnrichFile, enrichInstructions.trim())
+                  }
+                  setSelectedEnrichFile(null)
+                  setEnrichInstructions("")
+                }}
+              >
+                Enrich & Upload
+              </button>
+            </div>
+          </div>
+        )}
 
         <TextareaAutosize
           textareaRef={chatInputRef}
