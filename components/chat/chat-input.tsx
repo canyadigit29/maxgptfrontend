@@ -13,6 +13,7 @@ import { FC, useContext, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { Input } from "../ui/input"
+import { Progress } from "../ui/progress"
 import { TextareaAutosize } from "../ui/textarea-autosize"
 import { ChatCommandInput } from "./chat-command-input"
 import { ChatFilesDisplay } from "./chat-files-display"
@@ -31,6 +32,17 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
   })
 
   const [isTyping, setIsTyping] = useState<boolean>(false)
+  const [uploadStatus, setUploadStatus] = useState<
+    | null
+    | "uploading"
+    | "processing"
+    | "downloading"
+    | "done"
+    | "error"
+  >(null)
+  const [progress, setProgress] = useState(0)
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
+  const [downloadFileName, setDownloadFileName] = useState<string>("")
 
   const {
     isAssistantPickerOpen,
@@ -162,6 +174,46 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
     }
   }
 
+  const handleEnrichAgendaUpload = async (file: File) => {
+    setUploadStatus("uploading")
+    setProgress(10)
+    setDownloadUrl(null)
+    setDownloadFileName("")
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      setProgress(20)
+      setUploadStatus("processing")
+      const response = await fetch(
+        process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL + "/api/file_ops/enrich_agenda",
+        {
+          method: "POST",
+          body: formData
+        }
+      )
+      setProgress(70)
+      if (!response.ok) throw new Error("Failed to process file")
+      setUploadStatus("downloading")
+      const blob = await response.blob()
+      setProgress(90)
+      const url = URL.createObjectURL(blob)
+      setDownloadUrl(url)
+      // Try to get filename from response header
+      const disposition = response.headers.get("content-disposition")
+      let fileName = file.name
+      if (disposition && disposition.includes("filename=")) {
+        fileName = disposition.split("filename=")[1].replace(/['"]/g, "")
+      }
+      setDownloadFileName(fileName.startsWith("enriched_") ? fileName : "enriched_" + fileName)
+      setProgress(100)
+      setUploadStatus("done")
+    } catch (e) {
+      setUploadStatus("error")
+      setProgress(0)
+      toast.error("Failed to enrich agenda file.")
+    }
+  }
+
   return (
     <>
       <div className="flex flex-col flex-wrap justify-center gap-2">
@@ -230,7 +282,7 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
             type="file"
             onChange={e => {
               if (!e.target.files) return
-              handleSelectDeviceFile(e.target.files[0])
+              handleEnrichAgendaUpload(e.target.files[0])
             }}
             accept={filesToAccept}
           />
@@ -275,6 +327,39 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
             />
           )}
         </div>
+
+        {uploadStatus && (
+          <div className="w-full mt-2 flex flex-col items-center">
+            <Progress value={progress} />
+            <div className="text-xs mt-1">
+              {uploadStatus === "uploading" && "Uploading..."}
+              {uploadStatus === "processing" && "Processing..."}
+              {uploadStatus === "downloading" && "Preparing download..."}
+              {uploadStatus === "done" && downloadUrl && (
+                <>
+                  File ready.{" "}
+                  <button
+                    className="underline text-blue-600"
+                    onClick={() => {
+                      const a = document.createElement("a")
+                      a.href = downloadUrl
+                      a.download = downloadFileName
+                      document.body.appendChild(a)
+                      a.click()
+                      document.body.removeChild(a)
+                      setDownloadUrl(null)
+                      setUploadStatus(null)
+                      setProgress(0)
+                    }}
+                  >
+                    Download
+                  </button>
+                </>
+              )}
+              {uploadStatus === "error" && "Error during enrichment."}
+            </div>
+          </div>
+        )}
       </div>
     </>
   )
