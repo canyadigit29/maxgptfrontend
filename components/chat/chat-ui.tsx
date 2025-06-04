@@ -38,7 +38,8 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     setChatFiles,
     setShowFilesDisplay,
     setUseRetrieval,
-    setSelectedTools
+    setSelectedTools,
+    searchSummary
   } = useContext(ChatbotUIContext)
 
   const { handleNewChat, handleFocusChatInput } = useChatHandler()
@@ -56,25 +57,6 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
   } = useScroll()
 
   const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchData = async () => {
-      await fetchMessages()
-      await fetchChat()
-
-      scrollToBottom()
-      setIsAtBottom(true)
-    }
-
-    if (params.chatid) {
-      fetchData().then(() => {
-        handleFocusChatInput()
-        setLoading(false)
-      })
-    } else {
-      setLoading(false)
-    }
-  }, [])
 
   const fetchMessages = async () => {
     const fetchedMessages = await getMessagesByChatId(params.chatid as string)
@@ -181,6 +163,25 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     })
   }
 
+  useEffect(() => {
+    const fetchData = async () => {
+      await fetchMessages()
+      await fetchChat()
+
+      scrollToBottom()
+      setIsAtBottom(true)
+    }
+
+    if (params.chatid) {
+      fetchData().then(() => {
+        handleFocusChatInput()
+        setLoading(false)
+      })
+    } else {
+      setLoading(false)
+    }
+  }, [params.chatid, fetchMessages, fetchChat, handleFocusChatInput, scrollToBottom, setIsAtBottom])
+
   if (loading) {
     return <Loading />
   }
@@ -212,6 +213,14 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
         onScroll={handleScroll}
       >
         <div ref={messagesStartRef} />
+
+        {/* Display search summary if present */}
+        {searchSummary && (
+          <div className="m-4 rounded border-l-4 border-yellow-400 bg-yellow-50 p-4 text-yellow-900 shadow">
+            <div className="mb-1 font-semibold">Search Summary</div>
+            <div style={{ whiteSpace: 'pre-wrap' }}>{searchSummary}</div>
+          </div>
+        )}
 
         <ChatMessages />
 

@@ -539,10 +539,13 @@ export const handleBackendSearch = async (
     }
     const data = await response.json()
     console.debug("[run search] Backend search results", data)
-    // Update: Normalize to array of document_chunks (retrieved_chunks)
-    return data.retrieved_chunks || []
+    // Return both summary and chunks
+    return {
+      summary: data.summary,
+      retrieved_chunks: data.retrieved_chunks || []
+    }
   } catch (err) {
     console.error("[run search] Error in handleBackendSearch", err)
-    return []
+    return { summary: undefined, retrieved_chunks: [] }
   }
 }

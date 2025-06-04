@@ -126,6 +126,9 @@ export const GlobalState: FC<GlobalStateProps> = ({ children }) => {
   // ENRICHMENT FILE STATE
   const [selectedEnrichFile, setSelectedEnrichFile] = useState<File | null>(null)
 
+  // SEARCH SUMMARY STATE
+  const [searchSummary, setSearchSummary] = useState<string | null>(null)
+
   useEffect(() => {
     ;(async () => {
       const profile = await fetchStartingData()
@@ -329,7 +332,11 @@ export const GlobalState: FC<GlobalStateProps> = ({ children }) => {
 
         // ENRICHMENT FILE STATE
         selectedEnrichFile,
-        setSelectedEnrichFile
+        setSelectedEnrichFile,
+
+        // SEARCH SUMMARY STORE
+        searchSummary,
+        setSearchSummary
       }}
     >
       {children}

@@ -140,6 +140,10 @@ interface ChatbotUIContext {
   // ENRICHMENT FILE STORE
   selectedEnrichFile: File | null
   setSelectedEnrichFile: Dispatch<SetStateAction<File | null>>
+
+  // SEARCH SUMMARY STORE
+  searchSummary: string | null
+  setSearchSummary: Dispatch<SetStateAction<string | null>>
 }
 
 export const ChatbotUIContext = createContext<ChatbotUIContext>({
@@ -269,5 +273,9 @@ export const ChatbotUIContext = createContext<ChatbotUIContext>({
 
   // ENRICHMENT FILE STORE
   selectedEnrichFile: null,
-  setSelectedEnrichFile: () => {}
+  setSelectedEnrichFile: () => {},
+
+  // SEARCH SUMMARY STORE
+  searchSummary: null,
+  setSearchSummary: () => {},
 })

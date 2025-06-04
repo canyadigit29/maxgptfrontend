@@ -68,7 +68,8 @@ export const useChatHandler = () => {
     models,
     isPromptPickerOpen,
     isFilePickerOpen,
-    isToolPickerOpen
+    isToolPickerOpen,
+    setSearchSummary
   } = useContext(ChatbotUIContext)
 
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
@@ -246,14 +247,16 @@ export const useChatHandler = () => {
         // Always store the message in chat history (handled below)
         // Call backend_search /chat endpoint
         console.debug("[run search] Triggered for message:", messageContent)
-        backendSearchResults = await handleBackendSearch(
+        const backendSearchResults = await handleBackendSearch(
           messageContent,
           profile?.user_id || "",
           selectedChat?.id || selectedWorkspace?.id || ""
         )
+        // Store summary in context for UI display
+        setSearchSummary?.(backendSearchResults.summary)
         // Limit to 100 results
-        retrievedFileItems = backendSearchResults.slice(0, 100)
-        runSearchDebugInfo = { backendSearchResultsCount: backendSearchResults.length, usedCount: retrievedFileItems.length }
+        retrievedFileItems = backendSearchResults.retrieved_chunks.slice(0, 100)
+        runSearchDebugInfo = { backendSearchResultsCount: backendSearchResults.retrieved_chunks.length, usedCount: retrievedFileItems.length }
         console.debug("[run search] Results processed", runSearchDebugInfo)
       } else if ((newMessageFiles.length > 0 || chatFiles.length > 0) && useRetrieval) {
         setToolInUse("retrieval")
