@@ -217,7 +217,7 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
         const formData = new FormData()
         formData.append("file", selectedEnrichFile)
         formData.append("instructions", messageContent)
-        formData.append("user_id", profile?.id || "")
+        formData.append("user_id", profile?.user_id || "")
         setProgress(20)
         setUploadStatus("processing")
         const fileOpsEnv = process.env.NEXT_PUBLIC_BACKEND_FILEOPS_URL
