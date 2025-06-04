@@ -136,6 +136,10 @@ interface ChatbotUIContext {
   setSelectedTools: Dispatch<SetStateAction<Tables<"tools">[]>>
   toolInUse: string
   setToolInUse: Dispatch<SetStateAction<string>>
+
+  // ENRICHMENT FILE STORE
+  selectedEnrichFile: File | null
+  setSelectedEnrichFile: Dispatch<SetStateAction<File | null>>
 }
 
 export const ChatbotUIContext = createContext<ChatbotUIContext>({
@@ -261,5 +265,9 @@ export const ChatbotUIContext = createContext<ChatbotUIContext>({
   selectedTools: [],
   setSelectedTools: () => {},
   toolInUse: "none",
-  setToolInUse: () => {}
+  setToolInUse: () => {},
+
+  // ENRICHMENT FILE STORE
+  selectedEnrichFile: null,
+  setSelectedEnrichFile: () => {}
 })
