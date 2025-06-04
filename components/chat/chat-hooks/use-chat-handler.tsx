@@ -22,6 +22,7 @@ import {
   processResponse,
   validateChatSettings
 } from "../chat-helpers"
+import { toast } from "sonner"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -211,6 +212,29 @@ export const useChatHandler = () => {
       let retrievedFileItems: Tables<"file_items">[] = []
       let backendSearchResults: any[] = []
       let runSearchDebugInfo = {}
+
+      // Detect 'run ingestion' command
+      const isRunIngestion = messageContent.trim().toLowerCase().startsWith("run ingestion")
+      if (isRunIngestion) {
+        // Call backend_search /background_ingest_all endpoint
+        try {
+          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL || "https://your-backend-search-url"
+          const response = await fetch(`${backendUrl}/background_ingest_all`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+          })
+          if (!response.ok) {
+            toast.error("Failed to start global ingestion.")
+          } else {
+            toast.success("Global ingestion started.")
+          }
+        } catch (err) {
+          toast.error("Error triggering global ingestion.")
+        }
+        setIsGenerating(false)
+        setFirstTokenReceived(false)
+        return
+      }
 
       // Move b64Images declaration above its first use
       const b64Images = newMessageImages.map((image: any) => image.base64)
