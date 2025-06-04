@@ -43,9 +43,10 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
   const [progress, setProgress] = useState(0)
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
   const [downloadFileName, setDownloadFileName] = useState<string>("")
-  const [selectedEnrichFile, setSelectedEnrichFile] = useState<File | null>(null)
 
   const {
+    selectedEnrichFile,
+    setSelectedEnrichFile,
     isAssistantPickerOpen,
     focusAssistant,
     setFocusAssistant,
