@@ -44,8 +44,6 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
   const [downloadFileName, setDownloadFileName] = useState<string>("")
   const [selectedEnrichFile, setSelectedEnrichFile] = useState<File | null>(null)
-  const [enrichInstructions, setEnrichInstructions] = useState<string>("")
-  const [showEnrichPrompt, setShowEnrichPrompt] = useState(false)
 
   const {
     isAssistantPickerOpen,
@@ -177,52 +175,103 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
     }
   }
 
-  const handleEnrichAgendaUpload = async (file: File, instructions: string) => {
-    setUploadStatus("uploading")
-    setProgress(10)
-    setDownloadUrl(null)
-    setDownloadFileName("")
-    try {
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("instructions", instructions)
-      setProgress(20)
-      setUploadStatus("processing")
-      const fileOpsEnv = process.env.NEXT_PUBLIC_BACKEND_FILEOPS_URL
-      if (!fileOpsEnv) {
-        throw new Error(
-          "Environment variable NEXT_PUBLIC_BACKEND_FILEOPS_URL is not set. Please set it in your environment."
-        )
+  const chatContext = useContext(ChatbotUIContext)
+  // On file select, prompt user in chat for instructions
+  const handleFileSelectForEnrichment = (file: File) => {
+    setSelectedEnrichFile(file)
+    chatContext.setChatMessages((prev: any[]) => [
+      ...prev,
+      {
+        message: {
+          id: `sys-enrich-prompt-${Date.now()}`,
+          role: "assistant",
+          content: "Please provide instructions for how you'd like this file to be enriched.",
+          created_at: new Date().toISOString(),
+          sequence_number: prev.length,
+          chat_id: "",
+          assistant_id: null,
+          user_id: "",
+          model: chatSettings?.model || "",
+          image_paths: [],
+          updated_at: ""
+        },
+        fileItems: []
       }
-      const fileOpsUrl = fileOpsEnv.replace(/\/$/, "")
-      const response = await fetch(
-        fileOpsUrl + "/file_ops/enrich_agenda",
-        {
-          method: "POST",
-          body: formData
+    ])
+  }
+
+  // Intercept send message: if file is pending, treat user input as instructions
+  const handleSendMessageWithEnrichment = async (messageContent: string, chatMessages: any[], isRegeneration: boolean) => {
+    if (selectedEnrichFile) {
+      setUploadStatus("uploading")
+      setProgress(10)
+      setDownloadUrl(null)
+      setDownloadFileName("")
+      try {
+        const formData = new FormData()
+        formData.append("file", selectedEnrichFile)
+        formData.append("instructions", messageContent)
+        setProgress(20)
+        setUploadStatus("processing")
+        const fileOpsEnv = process.env.NEXT_PUBLIC_BACKEND_FILEOPS_URL
+        if (!fileOpsEnv) {
+          throw new Error(
+            "Environment variable NEXT_PUBLIC_BACKEND_FILEOPS_URL is not set. Please set it in your environment."
+          )
         }
-      )
-      setProgress(70)
-      if (!response.ok) throw new Error("Failed to process file")
-      setUploadStatus("downloading")
-      const blob = await response.blob()
-      setProgress(90)
-      const url = URL.createObjectURL(blob)
-      setDownloadUrl(url)
-      // Try to get filename from response header
-      const disposition = response.headers.get("content-disposition")
-      let fileName = file.name
-      if (disposition && disposition.includes("filename=")) {
-        fileName = disposition.split("filename=")[1].replace(/['"]/g, "")
+        const fileOpsUrl = fileOpsEnv.replace(/\/$/, "")
+        const response = await fetch(
+          fileOpsUrl + "/file_ops/enrich_agenda",
+          {
+            method: "POST",
+            body: formData
+          }
+        )
+        setProgress(70)
+        if (!response.ok) throw new Error("Failed to process file")
+        setUploadStatus("downloading")
+        const blob = await response.blob()
+        setProgress(90)
+        const url = URL.createObjectURL(blob)
+        setDownloadUrl(url)
+        // Try to get filename from response header
+        const disposition = response.headers.get("content-disposition")
+        let fileName = selectedEnrichFile.name
+        if (disposition && disposition.includes("filename=")) {
+          fileName = disposition.split("filename=")[1].replace(/['\"]/g, "")
+        }
+        setDownloadFileName(fileName.startsWith("enriched_") ? fileName : "enriched_" + fileName)
+        setProgress(100)
+        setUploadStatus("done")
+      } catch (e) {
+        setUploadStatus("error")
+        setProgress(0)
+        toast.error("Failed to enrich agenda file.")
       }
-      setDownloadFileName(fileName.startsWith("enriched_") ? fileName : "enriched_" + fileName)
-      setProgress(100)
-      setUploadStatus("done")
-    } catch (e) {
-      setUploadStatus("error")
-      setProgress(0)
-      toast.error("Failed to enrich agenda file.")
+      setSelectedEnrichFile(null)
+      chatContext.setChatMessages((prev: any[]) => [
+        ...prev,
+        {
+          message: {
+            id: `sys-enrich-confirm-${Date.now()}`,
+            role: "assistant",
+            content: "Enrichment started. You will be able to download the enriched file when ready.",
+            created_at: new Date().toISOString(),
+            sequence_number: prev.length,
+            chat_id: "",
+            assistant_id: null,
+            user_id: "",
+            model: chatSettings?.model || "",
+            image_paths: [],
+            updated_at: ""
+          },
+          fileItems: []
+        }
+      ])
+      chatContext.setUserInput("")
+      return
     }
+    handleSendMessage(messageContent, chatMessages, isRegeneration)
   }
 
   return (
@@ -293,54 +342,11 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
             type="file"
             onChange={e => {
               if (!e.target.files) return
-              setSelectedEnrichFile(e.target.files[0])
-              setShowEnrichPrompt(true)
+              handleFileSelectForEnrichment(e.target.files[0])
             }}
             accept={filesToAccept}
           />
         </>
-
-        {/* Enrichment instructions prompt */}
-        {showEnrichPrompt && selectedEnrichFile && (
-          <div className="absolute left-1/2 top-1/2 z-50 flex w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-3 rounded-lg border border-gray-300 bg-white p-6 shadow-xl">
-            <div className="mb-1 font-semibold">Provide instructions for enrichment</div>
-            <div className="mb-2 text-xs text-gray-500">Example: &#39;Find all the meeting topics and search for any related information contained in my documents and summarize.&#39;</div>
-            <TextareaAutosize
-              className="mb-2 w-full rounded border p-2"
-              minRows={2}
-              maxRows={6}
-              value={enrichInstructions}
-              onValueChange={setEnrichInstructions}
-              placeholder="Enter your instructions here..."
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                className="rounded bg-gray-200 px-4 py-1 hover:bg-gray-300"
-                onClick={() => {
-                  setShowEnrichPrompt(false)
-                  setSelectedEnrichFile(null)
-                  setEnrichInstructions("")
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                className="rounded bg-blue-600 px-4 py-1 text-white hover:bg-blue-700"
-                disabled={!enrichInstructions.trim()}
-                onClick={() => {
-                  setShowEnrichPrompt(false)
-                  if (selectedEnrichFile && enrichInstructions.trim()) {
-                    handleEnrichAgendaUpload(selectedEnrichFile, enrichInstructions.trim())
-                  }
-                  setSelectedEnrichFile(null)
-                  setEnrichInstructions("")
-                }}
-              >
-                Enrich & Upload
-              </button>
-            </div>
-          </div>
-        )}
 
         <TextareaAutosize
           textareaRef={chatInputRef}
@@ -374,8 +380,7 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
               )}
               onClick={() => {
                 if (!userInput) return
-
-                handleSendMessage(userInput, chatMessages, false)
+                handleSendMessageWithEnrichment(userInput, chatMessages, false)
               }}
               size={30}
             />
@@ -383,9 +388,9 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
         </div>
 
         {uploadStatus && (
-          <div className="w-full mt-2 flex flex-col items-center">
+          <div className="mt-2 flex w-full flex-col items-center">
             <Progress value={progress} />
-            <div className="text-xs mt-1">
+            <div className="mt-1 text-xs">
               {uploadStatus === "uploading" && "Uploading..."}
               {uploadStatus === "processing" && "Processing..."}
               {uploadStatus === "downloading" && "Preparing download..."}
@@ -393,7 +398,7 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
                 <>
                   File ready.{" "}
                   <button
-                    className="underline text-blue-600"
+                    className="text-blue-600 underline"
                     onClick={() => {
                       const a = document.createElement("a")
                       a.href = downloadUrl
