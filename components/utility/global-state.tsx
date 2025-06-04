@@ -123,6 +123,9 @@ export const GlobalState: FC<GlobalStateProps> = ({ children }) => {
   const [selectedTools, setSelectedTools] = useState<Tables<"tools">[]>([])
   const [toolInUse, setToolInUse] = useState<string>("none")
 
+  // ENRICHMENT FILE STATE
+  const [selectedEnrichFile, setSelectedEnrichFile] = useState<File | null>(null)
+
   useEffect(() => {
     ;(async () => {
       const profile = await fetchStartingData()
@@ -322,7 +325,11 @@ export const GlobalState: FC<GlobalStateProps> = ({ children }) => {
         selectedTools,
         setSelectedTools,
         toolInUse,
-        setToolInUse
+        setToolInUse,
+
+        // ENRICHMENT FILE STATE
+        selectedEnrichFile,
+        setSelectedEnrichFile
       }}
     >
       {children}
