@@ -184,16 +184,15 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
       formData.append("file", file)
       setProgress(20)
       setUploadStatus("processing")
-      const backendEnv = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL
-      if (!backendEnv) {
-        // Throw a clear error and stop further execution
+      const fileOpsEnv = process.env.NEXT_PUBLIC_BACKEND_FILEOPS_URL
+      if (!fileOpsEnv) {
         throw new Error(
-          "Environment variable NEXT_PUBLIC_BACKEND_SEARCH_URL is not set. Please set it in your environment."
+          "Environment variable NEXT_PUBLIC_BACKEND_FILEOPS_URL is not set. Please set it in your environment."
         )
       }
-      const backendUrl = backendEnv.replace(/\/$/, "")
+      const fileOpsUrl = fileOpsEnv.replace(/\/$/, "")
       const response = await fetch(
-        backendUrl + "/file_ops/enrich_agenda",
+        fileOpsUrl + "/file_ops/enrich_agenda",
         {
           method: "POST",
           body: formData
@@ -215,10 +214,10 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
       setDownloadFileName(fileName.startsWith("enriched_") ? fileName : "enriched_" + fileName)
       setProgress(100)
       setUploadStatus("done")
-    } catch (e: any) {
+    } catch (e) {
       setUploadStatus("error")
       setProgress(0)
-      toast.error(e?.message || "Failed to enrich agenda file.")
+      toast.error("Failed to enrich agenda file.")
     }
   }
   return (
