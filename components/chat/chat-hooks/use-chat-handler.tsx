@@ -216,9 +216,12 @@ export const useChatHandler = () => {
       // Detect 'run ingestion' command
       const isRunIngestion = messageContent.trim().toLowerCase().startsWith("run ingestion")
       if (isRunIngestion) {
-        // Call backend_search /background_ingest_all endpoint
         try {
-          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL || "https://your-backend-search-url"
+          // If backendUrl ends with /chat, remove it for ingestion endpoint
+          let backendUrl = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL || "https://your-backend-search-url/chat"
+          if (backendUrl.endsWith("/chat")) {
+            backendUrl = backendUrl.replace(/\/chat$/, "")
+          }
           const response = await fetch(`${backendUrl}/background_ingest_all`, {
             method: "POST",
             headers: { "Content-Type": "application/json" }
