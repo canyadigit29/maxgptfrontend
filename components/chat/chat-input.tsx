@@ -98,7 +98,11 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
     if (!isTyping && event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
       setIsPromptPickerOpen(false)
-      handleSendMessage(userInput, chatMessages, false)
+      if (selectedEnrichFile) {
+        handleSendMessageWithEnrichment(userInput, chatMessages, false)
+      } else {
+        handleSendMessage(userInput, chatMessages, false)
+      }
     }
 
     // Consolidate conditions to avoid TypeScript error
