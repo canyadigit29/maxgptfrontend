@@ -25,7 +25,8 @@ import { useSelectFileHandler } from "./chat-hooks/use-select-file-handler"
 interface ChatInputProps {}
 
 export const ChatInput: FC<ChatInputProps> = ({}) => {
-  const { t, profile } = useTranslation()
+  const { t } = useTranslation()
+  const { profile } = useContext(ChatbotUIContext)
 
   useHotkey("l", () => {
     handleFocusChatInput()
