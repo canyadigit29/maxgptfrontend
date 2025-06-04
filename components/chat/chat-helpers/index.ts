@@ -540,11 +540,7 @@ export const handleBackendSearch = async (
     const data = await response.json()
     console.debug("[run search] Backend search results", data)
     // Update: Normalize to array of document_chunks (retrieved_chunks)
-    // Patch: Also return user_prompt for downstream summarization or logic
-    return {
-      retrieved_chunks: data.retrieved_chunks || [],
-      user_prompt: data.user_prompt || null
-    }
+    return data.retrieved_chunks || []
   } catch (err) {
     console.error("[run search] Error in handleBackendSearch", err)
     return []
