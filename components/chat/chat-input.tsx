@@ -185,7 +185,7 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
       setProgress(20)
       setUploadStatus("processing")
       const response = await fetch(
-        process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL + "/api/file_ops/enrich_agenda",
+        process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL.replace(/\/$/, "") + "/file_ops/enrich_agenda",
         {
           method: "POST",
           body: formData
