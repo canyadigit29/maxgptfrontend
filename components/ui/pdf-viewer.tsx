@@ -69,21 +69,29 @@ export const PdfViewer = ({ fileUrl, highlightTexts }: PdfViewerProps) => {
     setCurrentHighlightIdx(idx);
   };
 
-  // Custom text renderer to highlight all matches, with debug logging
+  // Utility to normalize text for robust matching
+  function normalizeText(str: string) {
+    return str.replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  // Custom text renderer to highlight all matches, with debug logging and robust matching
   const customTextRenderer = (textItem: any) => {
     if (!highlightTexts || highlightTexts.length === 0) return textItem.str;
     let str = textItem.str;
+    const normStr = normalizeText(str);
     let matched = false;
     highlightTexts.forEach(ht => {
-      if (ht && str.includes(ht)) {
+      const normHt = normalizeText(ht);
+      if (normHt && normStr.includes(normHt)) {
         matched = true;
-        str = str.split(ht).join(`<mark style='background: yellow; color: black;'>${ht}</mark>`);
+        // For debug: log the actual text and highlight text
+        console.log('Highlighting:', { actual: str, highlight: ht, normStr, normHt });
+        // Highlight all occurrences (case/whitespace insensitive)
+        // Use a regex to replace all matches
+        const regex = new RegExp(normHt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        str = str.replace(regex, match => `<mark style='background: yellow; color: black;'>${match}</mark>`);
       }
     });
-    if (matched) {
-      // Debug: log what is being highlighted
-      console.log('Highlighting in text layer:', str);
-    }
     return <span dangerouslySetInnerHTML={{ __html: str }} />;
   };
 
