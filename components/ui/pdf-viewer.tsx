@@ -69,15 +69,21 @@ export const PdfViewer = ({ fileUrl, highlightTexts }: PdfViewerProps) => {
     setCurrentHighlightIdx(idx);
   };
 
-  // Custom text renderer to highlight all matches
+  // Custom text renderer to highlight all matches, with debug logging
   const customTextRenderer = (textItem: any) => {
     if (!highlightTexts || highlightTexts.length === 0) return textItem.str;
     let str = textItem.str;
+    let matched = false;
     highlightTexts.forEach(ht => {
       if (ht && str.includes(ht)) {
+        matched = true;
         str = str.split(ht).join(`<mark style='background: yellow; color: black;'>${ht}</mark>`);
       }
     });
+    if (matched) {
+      // Debug: log what is being highlighted
+      console.log('Highlighting in text layer:', str);
+    }
     return <span dangerouslySetInnerHTML={{ __html: str }} />;
   };
 
@@ -91,16 +97,15 @@ export const PdfViewer = ({ fileUrl, highlightTexts }: PdfViewerProps) => {
   return (
     <div style={{ width: '100%', height: '80vh', overflow: 'auto' }}>
       <Document file={fileUrl} onLoadSuccess={onDocumentLoadSuccess} loading="Loading PDF...">
-        {Array.from(new Array(numPages || 0), (el, index) => {
+        {numPages && Array.from({ length: numPages }, (_, index) => {
           const pageIdx = index + 1;
-          // Attach ref to the first page with a highlight for auto-scroll
           const isFirstHighlightPage = searchPage === pageIdx;
           return (
             <div key={`page_wrap_${pageIdx}`} ref={isFirstHighlightPage ? firstHighlightRef : undefined}>
               <Page
                 pageNumber={pageIdx}
                 width={800}
-                renderTextLayer
+                renderTextLayer={true}
                 customTextRenderer={customTextRenderer}
               />
             </div>
