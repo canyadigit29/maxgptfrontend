@@ -13,7 +13,6 @@ import { FC, useContext, useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { Input } from "../ui/input"
-import { Progress } from "../ui/progress"
 import { TextareaAutosize } from "../ui/textarea-autosize"
 import { ChatCommandInput } from "./chat-command-input"
 import { ChatFilesDisplay } from "./chat-files-display"
@@ -33,14 +32,6 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
   })
 
   const [isTyping, setIsTyping] = useState<boolean>(false)
-  const [uploadStatus, setUploadStatus] = useState<
-    | null
-    | "uploading"
-    | "processing"
-    | "done"
-    | "error"
-  >(null)
-  const [progress, setProgress] = useState(0)
 
   const {
     selectedEnrichFile,
@@ -206,15 +197,11 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
   // Intercept send message: if file is pending, treat user input as instructions
   const handleSendMessageWithEnrichment = async (messageContent: string, chatMessages: any[], isRegeneration: boolean) => {
     if (selectedEnrichFile) {
-      setUploadStatus("uploading")
-      setProgress(10)
       try {
         const formData = new FormData()
         formData.append("file", selectedEnrichFile)
         formData.append("instructions", messageContent)
         formData.append("user_id", profile?.user_id || "")
-        setProgress(20)
-        setUploadStatus("processing")
         const fileOpsEnv = process.env.NEXT_PUBLIC_BACKEND_FILEOPS_URL
         if (!fileOpsEnv) {
           throw new Error(
@@ -229,12 +216,9 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
             body: formData
           }
         )
-        setProgress(70)
         if (!response.ok) throw new Error("Failed to process file")
         // Expect JSON response
         const json = await response.json()
-        setProgress(100)
-        setUploadStatus("done")
         // Add enrichment results as a chat message
         chatContext.setChatMessages((prev: any[]) => [
           ...prev,
@@ -256,8 +240,6 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
           }
         ])
       } catch (e) {
-        setUploadStatus("error")
-        setProgress(0)
         toast.error("Failed to enrich agenda file.")
       }
       setSelectedEnrichFile(null)
@@ -379,18 +361,6 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
             />
           )}
         </div>
-
-        {uploadStatus && (
-          <div className="mt-2 flex w-full flex-col items-center">
-            <Progress value={progress} />
-            <div className="mt-1 text-xs">
-              {uploadStatus === "uploading" && "Uploading..."}
-              {uploadStatus === "processing" && "Processing..."}
-              {uploadStatus === "done" && "Enrichment complete."}
-              {uploadStatus === "error" && "Error during enrichment."}
-            </div>
-          </div>
-        )}
       </div>
     </>
   )
