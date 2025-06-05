@@ -214,14 +214,6 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
       >
         <div ref={messagesStartRef} />
 
-        {/* Display search summary if present */}
-        {searchSummary && (
-          <div className="m-4 rounded border-l-4 border-yellow-400 bg-yellow-50 p-4 text-yellow-900 shadow">
-            <div className="mb-1 font-semibold">Search Summary</div>
-            <div style={{ whiteSpace: 'pre-wrap' }}>{searchSummary}</div>
-          </div>
-        )}
-
         <ChatMessages />
 
         <div ref={messagesEndRef} />
