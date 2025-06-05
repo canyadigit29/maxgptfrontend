@@ -549,3 +549,25 @@ export const handleBackendSearch = async (
     return { summary: undefined, retrieved_chunks: [] }
   }
 }
+
+export const handleAgendaEnrichment = async (
+  userInput: string,
+  agendaId: string
+) => {
+  const response = await fetch(`/api/enrich-agenda`, {
+    method: "POST",
+    body: JSON.stringify({
+      userInput,
+      agendaId
+    })
+  });
+
+  if (!response.ok) {
+    console.error("Error enriching agenda:", response);
+    throw new Error("Failed to enrich agenda");
+  }
+
+  const { summary, retrieved_chunks } = await response.json();
+
+  return { summary, retrieved_chunks };
+};

@@ -128,13 +128,7 @@ export const Message: FC<MessageProps> = ({
 
   useEffect(() => {
     setEditedMessage(message.content)
-
-    if (isEditing && editInputRef.current) {
-      const input = editInputRef.current
-      input.focus()
-      input.setSelectionRange(input.value.length, input.value.length)
-    }
-  }, [isEditing])
+  }, [message.content, isEditing])
 
   const MODEL_DATA = [
     ...models.map(model => ({
@@ -193,16 +187,7 @@ export const Message: FC<MessageProps> = ({
   const handlePdfClick = async (file: any) => {
     const fullFile = files.find((f: any) => f.id === file.id);
     if (fullFile && fullFile.file_path) {
-      const signedUrl = await getFileFromStorage(fullFile.file_path);
-      // Open in new tab with download attribute for filename
-      const a = document.createElement('a');
-      a.href = signedUrl;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.download = fullFile.name || 'document.pdf';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      alert("PDF download functionality has been disabled.");
     } else {
       alert("Could not find file path for PDF.");
     }
@@ -389,7 +374,7 @@ export const Message: FC<MessageProps> = ({
                           <FileIcon type={file.type} />
                         </div>
                         <div
-                          className="truncate cursor-pointer underline text-blue-600 hover:opacity-50"
+                          className="cursor-pointer underline text-blue-600 truncate hover:opacity-50"
                           onClick={() => {
                             if (file.type === "pdf" || file.name?.toLowerCase().endsWith(".pdf")) {
                               handlePdfClick(file);
