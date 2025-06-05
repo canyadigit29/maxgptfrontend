@@ -325,12 +325,14 @@ export const Message: FC<MessageProps> = ({
                 const parsed = JSON.parse(message.content)
                 if (
                   parsed &&
-                  Array.isArray(parsed) &&
-                  parsed.length > 0 &&
-                  parsed[0].group_title &&
-                  parsed[0].subtopics
+                  parsed.topics &&
+                  Array.isArray(parsed.topics) &&
+                  parsed.topics.length > 0 &&
+                  parsed.topics[0].title &&
+                  parsed.topics[0].summary &&
+                  parsed.topics[0].retrieved_chunks
                 ) {
-                  return <AgendaEnrichResults results={parsed} />
+                  return <AgendaEnrichResults results={parsed.topics} />
                 }
               } catch (e) {
                 // Not JSON, fallback to markdown
