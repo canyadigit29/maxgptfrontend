@@ -27,6 +27,15 @@ module.exports = withBundleAnalyzer(
     },
     experimental: {
       serverComponentsExternalPackages: ["sharp", "onnxruntime-node"]
+    },
+    webpack: (config, { isServer }) => {
+      if (isServer) {
+        config.externals.push({
+          'react-pdf': 'commonjs react-pdf',
+          'pdfjs-dist': 'commonjs pdfjs-dist'
+        });
+      }
+      return config;
     }
   })
 )
