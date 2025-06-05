@@ -25,6 +25,7 @@ import { MessageActions } from "./message-actions"
 import { MessageMarkdown } from "./message-markdown"
 import { PdfViewerDialog } from "../ui/pdf-viewer-dialog"
 import { getFileFromStorage } from "@/db/storage/files"
+import { AgendaEnrichResults } from "./agenda-enrich-results"
 
 const ICON_SIZE = 32
 
@@ -333,7 +334,24 @@ export const Message: FC<MessageProps> = ({
               maxRows={20}
             />
           ) : (
-            <MessageMarkdown content={message.content} />
+            (() => {
+              // Try to parse agenda enrichment results JSON
+              try {
+                const parsed = JSON.parse(message.content)
+                if (
+                  parsed &&
+                  Array.isArray(parsed) &&
+                  parsed.length > 0 &&
+                  parsed[0].group_title &&
+                  parsed[0].subtopics
+                ) {
+                  return <AgendaEnrichResults results={parsed} />
+                }
+              } catch (e) {
+                // Not JSON, fallback to markdown
+              }
+              return <MessageMarkdown content={message.content} />
+            })()
           )}
         </div>
 
