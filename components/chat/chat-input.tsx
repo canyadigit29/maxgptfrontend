@@ -37,13 +37,10 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
     | null
     | "uploading"
     | "processing"
-    | "downloading"
     | "done"
     | "error"
   >(null)
   const [progress, setProgress] = useState(0)
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
-  const [downloadFileName, setDownloadFileName] = useState<string>("")
 
   const {
     selectedEnrichFile,
@@ -211,8 +208,6 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
     if (selectedEnrichFile) {
       setUploadStatus("uploading")
       setProgress(10)
-      setDownloadUrl(null)
-      setDownloadFileName("")
       try {
         const formData = new FormData()
         formData.append("file", selectedEnrichFile)
@@ -236,45 +231,36 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
         )
         setProgress(70)
         if (!response.ok) throw new Error("Failed to process file")
-        setUploadStatus("downloading")
-        const blob = await response.blob()
-        setProgress(90)
-        const url = URL.createObjectURL(blob)
-        setDownloadUrl(url)
-        // Try to get filename from response header
-        const disposition = response.headers.get("content-disposition")
-        let fileName = selectedEnrichFile.name
-        if (disposition && disposition.includes("filename=")) {
-          fileName = disposition.split("filename=")[1].replace(/['\"]/g, "")
-        }
-        setDownloadFileName(fileName.startsWith("enriched_") ? fileName : "enriched_" + fileName)
+        // Expect JSON response
+        const json = await response.json()
         setProgress(100)
         setUploadStatus("done")
+        // Add enrichment results as a chat message
+        chatContext.setChatMessages((prev: any[]) => [
+          ...prev,
+          {
+            message: {
+              id: `sys-enrich-results-${Date.now()}`,
+              role: "assistant",
+              content: JSON.stringify(json),
+              created_at: new Date().toISOString(),
+              sequence_number: prev.length,
+              chat_id: "",
+              assistant_id: null,
+              user_id: "",
+              model: chatSettings?.model || "",
+              image_paths: [],
+              updated_at: ""
+            },
+            fileItems: []
+          }
+        ])
       } catch (e) {
         setUploadStatus("error")
         setProgress(0)
         toast.error("Failed to enrich agenda file.")
       }
       setSelectedEnrichFile(null)
-      chatContext.setChatMessages((prev: any[]) => [
-        ...prev,
-        {
-          message: {
-            id: `sys-enrich-confirm-${Date.now()}`,
-            role: "assistant",
-            content: "Enrichment started. You will be able to download the enriched file when ready.",
-            created_at: new Date().toISOString(),
-            sequence_number: prev.length,
-            chat_id: "",
-            assistant_id: null,
-            user_id: "",
-            model: chatSettings?.model || "",
-            image_paths: [],
-            updated_at: ""
-          },
-          fileItems: []
-        }
-      ])
       chatContext.setUserInput("")
       return
     }
@@ -400,28 +386,7 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
             <div className="mt-1 text-xs">
               {uploadStatus === "uploading" && "Uploading..."}
               {uploadStatus === "processing" && "Processing..."}
-              {uploadStatus === "downloading" && "Preparing download..."}
-              {uploadStatus === "done" && downloadUrl && (
-                <>
-                  File ready.{" "}
-                  <button
-                    className="text-blue-600 underline"
-                    onClick={() => {
-                      const a = document.createElement("a")
-                      a.href = downloadUrl
-                      a.download = downloadFileName
-                      document.body.appendChild(a)
-                      a.click()
-                      document.body.removeChild(a)
-                      setDownloadUrl(null)
-                      setUploadStatus(null)
-                      setProgress(0)
-                    }}
-                  >
-                    Download
-                  </button>
-                </>
-              )}
+              {uploadStatus === "done" && "Enrichment complete."}
               {uploadStatus === "error" && "Error during enrichment."}
             </div>
           </div>
