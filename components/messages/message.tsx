@@ -193,7 +193,15 @@ export const Message: FC<MessageProps> = ({
     const fullFile = files.find((f: any) => f.id === file.id);
     if (fullFile && fullFile.file_path) {
       const signedUrl = await getFileFromStorage(fullFile.file_path);
-      window.open(signedUrl, "_blank");
+      // Open in new tab with download attribute for filename
+      const a = document.createElement('a');
+      a.href = signedUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.download = fullFile.name || 'document.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } else {
       alert("Could not find file path for PDF.");
     }
