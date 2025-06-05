@@ -17,11 +17,16 @@ export const PdfViewerDialog: FC<PdfViewerDialogProps> = ({ file, highlightTexts
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!file || !(file as any).file_path) return;
+    console.log('PdfViewerDialog file:', file);
+    if (!file || !(file as any).file_path) {
+      setError('No file_path found on file object.');
+      return;
+    }
     setLoading(true);
     setError(null);
     getFileFromStorage((file as any).file_path)
       .then(url => {
+        console.log('Generated signed PDF URL:', url);
         setSignedUrl(url);
         setLoading(false);
       })
