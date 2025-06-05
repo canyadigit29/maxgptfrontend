@@ -72,9 +72,12 @@ export const Message: FC<MessageProps> = ({
   const [showImagePreview, setShowImagePreview] = useState(false)
   const [selectedImage, setSelectedImage] = useState<MessageImage | null>(null)
 
-  const [showFileItemPreview, setShowFileItemPreview] = useState(false)
-  const [selectedFileItem, setSelectedFileItem] =
+  const [showFileItemPreview, setShowFileItemPreview] =
     useState<Tables<"file_items"> | null>(null)
+
+  const [showFilePreview, setShowFilePreview] = useState(false)
+  const [selectedFileForPreview, setSelectedFileForPreview] = useState<any>(null)
+  const [highlightedChunks, setHighlightedChunks] = useState<string[]>([])
 
   const [viewSources, setViewSources] = useState(false)
 
@@ -342,8 +345,20 @@ export const Message: FC<MessageProps> = ({
                         <div>
                           <FileIcon type={file.type} />
                         </div>
-
-                        <div className="truncate">{file.name}</div>
+                        <div
+                          className="truncate cursor-pointer underline hover:opacity-50"
+                          onClick={() => {
+                            setSelectedFileForPreview(file)
+                            // Find all chunks for this file
+                            const chunks = fileItems
+                              .filter(fileItem => fileItem.file_id === file.id)
+                              .map(fileItem => fileItem.content)
+                            setHighlightedChunks(chunks)
+                            setShowFilePreview(true)
+                          }}
+                        >
+                          {file.name}
+                        </div>
                       </div>
 
                       {fileItems
@@ -438,6 +453,20 @@ export const Message: FC<MessageProps> = ({
             setShowFileItemPreview(isOpen)
             setSelectedFileItem(null)
           }}
+        />
+      )}
+
+      {showFilePreview && selectedFileForPreview && (
+        <FilePreview
+          type="file"
+          item={selectedFileForPreview}
+          isOpen={showFilePreview}
+          onOpenChange={(isOpen: boolean) => {
+            setShowFilePreview(isOpen)
+            setSelectedFileForPreview(null)
+            setHighlightedChunks([])
+          }}
+          highlightedChunks={highlightedChunks}
         />
       )}
     </div>

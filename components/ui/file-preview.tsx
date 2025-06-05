@@ -12,13 +12,15 @@ interface FilePreviewProps {
   item: ChatFile | MessageImage | Tables<"file_items">
   isOpen: boolean
   onOpenChange: (isOpen: boolean) => void
+  highlightedChunks?: string[]
 }
 
 export const FilePreview: FC<FilePreviewProps> = ({
   type,
   item,
   isOpen,
-  onOpenChange
+  onOpenChange,
+  highlightedChunks
 }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -55,6 +57,20 @@ export const FilePreview: FC<FilePreviewProps> = ({
               </div>
             )
           } else if (type === "file") {
+            // If highlightedChunks is provided, show them
+            if (highlightedChunks && highlightedChunks.length > 0) {
+              return (
+                <div className="bg-background text-primary h-[50vh] min-w-[700px] overflow-auto whitespace-pre-wrap rounded-xl p-4">
+                  <div className="mb-2 font-bold">Highlighted Chunks:</div>
+                  {highlightedChunks.map((chunk, idx) => (
+                    <div key={idx} className="mb-4 p-2 rounded bg-yellow-100 text-yellow-900">
+                      {chunk}
+                    </div>
+                  ))}
+                </div>
+              )
+            }
+            // fallback: just show file icon
             return (
               <div className="rounded bg-blue-500 p-2">
                 <IconFileFilled />
