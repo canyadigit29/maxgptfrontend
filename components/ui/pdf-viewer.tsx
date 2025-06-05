@@ -17,6 +17,8 @@ export const PdfViewer = ({ fileUrl, highlightTexts }: PdfViewerProps) => {
   const [highlightLocations, setHighlightLocations] = useState<{page: number, idx: number, text: string}[]>([]);
   const [currentHighlightIdx, setCurrentHighlightIdx] = useState(0);
   const textLayerRef = useRef<HTMLDivElement>(null);
+  // Ref for scrolling to first highlight
+  const firstHighlightRef = useRef<HTMLDivElement>(null);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
@@ -79,22 +81,38 @@ export const PdfViewer = ({ fileUrl, highlightTexts }: PdfViewerProps) => {
     return <span dangerouslySetInnerHTML={{ __html: str }} />;
   };
 
+  // Auto-scroll to first highlight page after rendering
+  useEffect(() => {
+    if (firstHighlightRef.current) {
+      firstHighlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [searchPage]);
+
   return (
     <div style={{ width: '100%', height: '80vh', overflow: 'auto' }}>
       <Document file={fileUrl} onLoadSuccess={onDocumentLoadSuccess} loading="Loading PDF...">
-        <Page
-          pageNumber={pageNumber}
-          width={800}
-          renderTextLayer
-          customTextRenderer={customTextRenderer}
-        />
+        {Array.from(new Array(numPages || 0), (el, index) => {
+          const pageIdx = index + 1;
+          // Attach ref to the first page with a highlight for auto-scroll
+          const isFirstHighlightPage = searchPage === pageIdx;
+          return (
+            <div key={`page_wrap_${pageIdx}`} ref={isFirstHighlightPage ? firstHighlightRef : undefined}>
+              <Page
+                pageNumber={pageIdx}
+                width={800}
+                renderTextLayer
+                customTextRenderer={customTextRenderer}
+              />
+            </div>
+          );
+        })}
       </Document>
       {highlightTexts && highlightTexts.length > 0 && (
         <div className="mt-2 text-sm text-yellow-700">
           {searchError
             ? searchError
             : searchPage
-            ? `Showing page ${pageNumber} containing highlighted text.`
+            ? `Showing page ${searchPage} containing highlighted text.`
             : 'Searching for highlighted text...'}
         </div>
       )}
