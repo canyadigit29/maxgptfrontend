@@ -243,6 +243,50 @@ export const useChatHandler = () => {
       // Move b64Images declaration above its first use
       const b64Images = newMessageImages.map((image: any) => image.base64)
 
+      // Move temp message creation and chat pipeline after all retrieval logic
+      let modelData = [
+        ...models.map((model: any) => ({
+          modelId: model.model_id as LLMID,
+          modelName: model.name,
+          provider: "custom" as ModelProvider,
+          hostedId: model.id,
+          platformLink: "",
+          imageInput: false
+        })),
+        ...LLM_LIST,
+        ...availableLocalModels,
+        ...availableOpenRouterModels
+      ].find((llm: any) => llm.modelId === chatSettings?.model)
+
+      let payload: ChatPayload = {
+        chatSettings: chatSettings!,
+        workspaceInstructions: selectedWorkspace!.instructions || "",
+        chatMessages: isRegeneration
+          ? [...chatMessages]
+          : [...chatMessages], // Will be updated below for run search
+        assistant: selectedChat?.assistant_id ? selectedAssistant : null,
+        messageFileItems: [],
+        chatFileItems: []
+      }
+
+      let tempAssistantChatMessage: ChatMessage = {
+        message: {
+          id: "temp-assistant-message",
+          chat_id: selectedChat?.id || "",
+          user_id: profile?.user_id || "",
+          assistant_id: selectedAssistant?.id || null,
+          role: "assistant",
+          content: "",
+          model: chatSettings?.model || "",
+          sequence_number: chatMessages.length + 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          image_paths: []
+        },
+        fileItems: []
+      }
+
+      let generatedText = ""
       if (isRunSearch) {
         // Always store the message in chat history (handled below)
         // Call backend_search /chat endpoint
@@ -258,62 +302,9 @@ export const useChatHandler = () => {
         retrievedFileItems = backendSearchResults.retrieved_chunks.slice(0, 100)
         runSearchDebugInfo = { backendSearchResultsCount: backendSearchResults.retrieved_chunks.length, usedCount: retrievedFileItems.length }
         console.debug("[run search] Results processed", runSearchDebugInfo)
-      } else if ((newMessageFiles.length > 0 || chatFiles.length > 0) && useRetrieval) {
-        setToolInUse("retrieval")
-        retrievedFileItems = await handleRetrieval(
-          userInput,
-          newMessageFiles,
-          chatFiles,
-          chatSettings!.embeddingsProvider,
-          sourceCount
-        )
-      }
-
-      // Move temp message creation and chat pipeline after all retrieval logic
-      const { tempUserChatMessage, tempAssistantChatMessage } =
-        createTempMessages(
-          messageContent,
-          chatMessages,
-          chatSettings!,
-          b64Images,
-          isRegeneration,
-          setChatMessages,
-          selectedAssistant
-        )
-
-      let payload: ChatPayload = {
-        chatSettings: chatSettings!,
-        workspaceInstructions: selectedWorkspace!.instructions || "",
-        chatMessages: isRegeneration
-          ? [...chatMessages]
-          : [...chatMessages, tempUserChatMessage],
-        assistant: selectedChat?.assistant_id ? selectedAssistant : null,
-        messageFileItems: retrievedFileItems,
-        chatFileItems: chatFileItems
-      }
-
-      // Only run the rest of the chat pipeline if not 'run search', or after backend results are injected
-      // For 'run search', skip embedding and modelData logic, but still create temp messages and continue pipeline
-      let modelData = [
-        ...models.map((model: any) => ({
-          modelId: model.model_id as LLMID,
-          modelName: model.name,
-          provider: "custom" as ModelProvider,
-          hostedId: model.id,
-          platformLink: "",
-          imageInput: false
-        })),
-        ...LLM_LIST,
-        ...availableLocalModels,
-        ...availableOpenRouterModels
-      ].find((llm: any) => llm.modelId === chatSettings?.model)
-
-      let generatedText = ""
-
-      if (isRunSearch) {
-        // Optionally, you could have the assistant summarize or respond to the search results here
-        generatedText = "[run search completed: results injected, ready for follow-up questions]"
-        console.debug("[run search] Assistant ready for follow-up with injected results.")
+        // Use the summary as the assistant's message content
+        generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
+        console.debug("[run search] Assistant ready for follow-up with summary.")
       } else if (selectedTools.length > 0) {
         setToolInUse("Tools")
         const formattedMessages = await buildFinalMessages(
