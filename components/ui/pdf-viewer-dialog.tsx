@@ -1,24 +1,23 @@
 import { Dialog, DialogContent } from "./dialog";
-import { PdfViewer } from "./pdf-viewer";
+import { PdfViewerClient } from "./pdf-viewer-client";
 import { ChatFile } from "@/types";
 import { FC } from "react";
 
 interface PdfViewerDialogProps {
   file: ChatFile;
-  highlightText?: string;
+  highlightTexts?: string[];
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
 }
 
-export const PdfViewerDialog: FC<PdfViewerDialogProps> = ({ file, highlightText, isOpen, onOpenChange }) => {
-  // Assume file.file_path is a public URL or can be fetched
-  // You may need to adjust this to fetch from storage if needed
-  const fileUrl = file.file_path || file.url || file.path;
+export const PdfViewerDialog: FC<PdfViewerDialogProps> = ({ file, highlightTexts, isOpen, onOpenChange }) => {
+  // Use file.file_path for Tables<'files'>, fallback to file.name if needed
+  const fileUrl = (file as any).file_path || file.name;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="flex items-center justify-center outline-none border-transparent bg-transparent min-w-[900px] min-h-[80vh]">
-        <PdfViewer fileUrl={fileUrl} highlightText={highlightText} />
+        <PdfViewerClient fileUrl={fileUrl} highlightTexts={highlightTexts} />
       </DialogContent>
     </Dialog>
   );

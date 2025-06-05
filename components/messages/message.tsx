@@ -84,6 +84,7 @@ export const Message: FC<MessageProps> = ({
   const [showPdfDialog, setShowPdfDialog] = useState(false)
   const [selectedPdfFile, setSelectedPdfFile] = useState<any>(null)
   const [pdfHighlightText, setPdfHighlightText] = useState<string | undefined>(undefined)
+  const [pdfHighlightTexts, setPdfHighlightTexts] = useState<string[]>([]) // Add state for pdfHighlightTexts
 
   const handleCopy = () => {
     if (navigator.clipboard) {
@@ -357,7 +358,8 @@ export const Message: FC<MessageProps> = ({
                               const chunks = fileItems
                                 .filter(fileItem => fileItem.file_id === file.id)
                                 .map(fileItem => fileItem.content)
-                              setPdfHighlightText(chunks[0] || undefined)
+                              setPdfHighlightText(undefined) // Remove old single highlight
+                              setPdfHighlightTexts(chunks) // New: set all highlight texts
                               setShowPdfDialog(true)
                             } else {
                               setSelectedFileForPreview(file)
@@ -485,12 +487,12 @@ export const Message: FC<MessageProps> = ({
       {showPdfDialog && selectedPdfFile && (
         <PdfViewerDialog
           file={selectedPdfFile}
-          highlightText={pdfHighlightText}
+          highlightTexts={pdfHighlightTexts}
           isOpen={showPdfDialog}
           onOpenChange={(isOpen: boolean) => {
             setShowPdfDialog(isOpen)
             setSelectedPdfFile(null)
-            setPdfHighlightText(undefined)
+            setPdfHighlightTexts([])
           }}
         />
       )}
