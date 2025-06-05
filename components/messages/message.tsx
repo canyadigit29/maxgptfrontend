@@ -24,6 +24,7 @@ import { WithTooltip } from "../ui/with-tooltip"
 import { MessageActions } from "./message-actions"
 import { MessageMarkdown } from "./message-markdown"
 import { PdfViewerDialog } from "../ui/pdf-viewer-dialog"
+import { getFileFromStorage } from "@/db/storage/files"
 
 const ICON_SIZE = 32
 
@@ -186,6 +187,17 @@ export const Message: FC<MessageProps> = ({
     }
     return acc
   }, fileAccumulator)
+
+  // PDF click handler
+  const handlePdfClick = async (file: any) => {
+    const fullFile = files.find((f: any) => f.id === file.id);
+    if (fullFile && fullFile.file_path) {
+      const signedUrl = await getFileFromStorage(fullFile.file_path);
+      window.open(signedUrl, "_blank");
+    } else {
+      alert("Could not find file path for PDF.");
+    }
+  };
 
   return (
     <div
@@ -354,20 +366,12 @@ export const Message: FC<MessageProps> = ({
                           className="truncate cursor-pointer underline hover:opacity-50"
                           onClick={() => {
                             if (file.type === "pdf" || file.name?.toLowerCase().endsWith(".pdf")) {
-                              // Find the full file object from files array
-                              const fullFile = files.find(f => f.id === file.id);
-                              setSelectedPdfFile(fullFile);
-                              const chunks = fileItems
-                                .filter(fileItem => fileItem.file_id === file.id)
-                                .map(fileItem => fileItem.content)
-                              setPdfHighlightText(undefined) // Remove old single highlight
-                              setPdfHighlightTexts(chunks) // New: set all highlight texts
-                              setShowPdfDialog(true)
+                              handlePdfClick(file);
                             } else {
                               setSelectedFileForPreview(file)
                               const chunks = fileItems
-                                .filter(fileItem => fileItem.file_id === file.id)
-                                .map(fileItem => fileItem.content)
+                                .filter((fileItem: any) => fileItem.file_id === file.id)
+                                .map((fileItem: any) => fileItem.content)
                               setHighlightedChunks(chunks)
                               setShowFilePreview(true)
                             }
