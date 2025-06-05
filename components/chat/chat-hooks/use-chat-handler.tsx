@@ -305,21 +305,6 @@ export const useChatHandler = () => {
         // Use the summary as the assistant's message content
         generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
         console.debug("[run search] Assistant ready for follow-up with summary.")
-      } else if (isAgendaEnrichment) {
-        console.debug("[agenda enrichment] Triggered for message:", messageContent)
-        const agendaEnrichmentResults = await handleAgendaEnrichment(
-          messageContent,
-          selectedChat?.id || selectedWorkspace?.id || ""
-        )
-        // Store summary in context for UI display
-        setSearchSummary?.(agendaEnrichmentResults.summary)
-        // Limit to 100 results
-        retrievedFileItems = agendaEnrichmentResults.retrieved_chunks.slice(0, 100)
-        runSearchDebugInfo = { agendaEnrichmentResultsCount: agendaEnrichmentResults.retrieved_chunks.length, usedCount: retrievedFileItems.length }
-        console.debug("[agenda enrichment] Results processed", runSearchDebugInfo)
-        // Use the summary as the assistant's message content
-        generatedText = agendaEnrichmentResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
-        console.debug("[agenda enrichment] Assistant ready for follow-up with summary.")
       } else if (selectedTools.length > 0) {
         setToolInUse("Tools")
         const formattedMessages = await buildFinalMessages(
@@ -452,36 +437,6 @@ export const useChatHandler = () => {
 
     handleSendMessage(editedContent, filteredMessages, false)
   }
-
-  const handleAgendaEnrichmentResults = async (
-    userInput: string,
-    agendaId: string
-  ) => {
-    try {
-      const { summary, retrieved_chunks } = await handleAgendaEnrichment(
-        userInput,
-        agendaId
-      );
-
-      // Set the summary in context
-      setSearchSummary(summary);
-
-      // Link retrieved chunks to assistant message
-      const enrichedMessages = handleCreateMessages(retrieved_chunks);
-
-      // Update assistant message content to the summary
-      setChatMessages(prevMessages => {
-        const updatedMessages = [...prevMessages];
-        const assistantMessageIndex = updatedMessages.findIndex(msg => msg.role === "assistant");
-        if (assistantMessageIndex !== -1) {
-          updatedMessages[assistantMessageIndex].content = summary;
-        }
-        return updatedMessages;
-      });
-    } catch (error) {
-      console.error("Error handling agenda enrichment results:", error);
-    }
-  };
 
   return {
     chatInputRef,
