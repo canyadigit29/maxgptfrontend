@@ -89,7 +89,7 @@ export const PdfViewer = ({ fileUrl, highlightTexts }: PdfViewerProps) => {
         // Highlight all occurrences (case/whitespace insensitive)
         // Use a regex to replace all matches
         const regex = new RegExp(normHt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-        str = str.replace(regex, match => `<mark style='background: yellow; color: black;'>${match}</mark>`);
+        str = str.replace(regex, (match: string) => `<mark style='background: yellow; color: black;'>${match}</mark>`);
       }
     });
     return <span dangerouslySetInnerHTML={{ __html: str }} />;
