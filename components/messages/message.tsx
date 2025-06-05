@@ -72,8 +72,8 @@ export const Message: FC<MessageProps> = ({
   const [showImagePreview, setShowImagePreview] = useState(false)
   const [selectedImage, setSelectedImage] = useState<MessageImage | null>(null)
 
-  const [showFileItemPreview, setShowFileItemPreview] =
-    useState<Tables<"file_items"> | null>(null)
+  const [showFileItemPreview, setShowFileItemPreview] = useState(false)
+  const [selectedFileItem, setSelectedFileItem] = useState<Tables<"file_items"> | null>(null)
 
   const [showFilePreview, setShowFilePreview] = useState(false)
   const [selectedFileForPreview, setSelectedFileForPreview] = useState<any>(null)
