@@ -23,6 +23,7 @@ import { TextareaAutosize } from "../ui/textarea-autosize"
 import { WithTooltip } from "../ui/with-tooltip"
 import { MessageActions } from "./message-actions"
 import { MessageMarkdown } from "./message-markdown"
+import { PdfViewerDialog } from "../ui/pdf-viewer-dialog"
 
 const ICON_SIZE = 32
 
@@ -80,6 +81,9 @@ export const Message: FC<MessageProps> = ({
   const [highlightedChunks, setHighlightedChunks] = useState<string[]>([])
 
   const [viewSources, setViewSources] = useState(false)
+  const [showPdfDialog, setShowPdfDialog] = useState(false)
+  const [selectedPdfFile, setSelectedPdfFile] = useState<any>(null)
+  const [pdfHighlightText, setPdfHighlightText] = useState<string | undefined>(undefined)
 
   const handleCopy = () => {
     if (navigator.clipboard) {
@@ -348,13 +352,21 @@ export const Message: FC<MessageProps> = ({
                         <div
                           className="truncate cursor-pointer underline hover:opacity-50"
                           onClick={() => {
-                            setSelectedFileForPreview(file)
-                            // Find all chunks for this file
-                            const chunks = fileItems
-                              .filter(fileItem => fileItem.file_id === file.id)
-                              .map(fileItem => fileItem.content)
-                            setHighlightedChunks(chunks)
-                            setShowFilePreview(true)
+                            if (file.type === "pdf" || file.name?.toLowerCase().endsWith(".pdf")) {
+                              setSelectedPdfFile(file)
+                              const chunks = fileItems
+                                .filter(fileItem => fileItem.file_id === file.id)
+                                .map(fileItem => fileItem.content)
+                              setPdfHighlightText(chunks[0] || undefined)
+                              setShowPdfDialog(true)
+                            } else {
+                              setSelectedFileForPreview(file)
+                              const chunks = fileItems
+                                .filter(fileItem => fileItem.file_id === file.id)
+                                .map(fileItem => fileItem.content)
+                              setHighlightedChunks(chunks)
+                              setShowFilePreview(true)
+                            }
                           }}
                         >
                           {file.name}
@@ -467,6 +479,19 @@ export const Message: FC<MessageProps> = ({
             setHighlightedChunks([])
           }}
           highlightedChunks={highlightedChunks}
+        />
+      )}
+
+      {showPdfDialog && selectedPdfFile && (
+        <PdfViewerDialog
+          file={selectedPdfFile}
+          highlightText={pdfHighlightText}
+          isOpen={showPdfDialog}
+          onOpenChange={(isOpen: boolean) => {
+            setShowPdfDialog(isOpen)
+            setSelectedPdfFile(null)
+            setPdfHighlightText(undefined)
+          }}
         />
       )}
     </div>
