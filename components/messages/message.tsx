@@ -354,7 +354,9 @@ export const Message: FC<MessageProps> = ({
                           className="truncate cursor-pointer underline hover:opacity-50"
                           onClick={() => {
                             if (file.type === "pdf" || file.name?.toLowerCase().endsWith(".pdf")) {
-                              setSelectedPdfFile(file)
+                              // Find the full file object from files array
+                              const fullFile = files.find(f => f.id === file.id);
+                              setSelectedPdfFile(fullFile);
                               const chunks = fileItems
                                 .filter(fileItem => fileItem.file_id === file.id)
                                 .map(fileItem => fileItem.content)
