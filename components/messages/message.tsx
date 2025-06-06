@@ -26,6 +26,8 @@ import { MessageMarkdown } from "./message-markdown"
 import { PdfViewerDialog } from "../ui/pdf-viewer-dialog"
 import { getFileFromStorage } from "@/db/storage/files"
 import { AgendaEnrichResults } from "./agenda-enrich-results"
+import { getRetrievedChunksBySearchId } from "@/db/retrieved-chunks";
+import { supabase } from "@/lib/supabase/browser-client";
 
 const ICON_SIZE = 32
 
@@ -207,20 +209,43 @@ export const Message: FC<MessageProps> = ({
     }
   };
 
-  // Follow-up Q&A handler
+  // Follow-up Q&A handler (frontend-only)
   async function handleFollowup() {
     setIsFollowupLoading(true);
     setFollowupAnswer("");
     try {
       // Use message.search_id if present, otherwise fallback to message.id
       const searchId = (message as any).search_id || message.id;
-      const res = await fetch("/api/retrieval/followup/route", {
+      // 1. Get chunk IDs for this search
+      const chunkIds = await getRetrievedChunksBySearchId(searchId);
+      if (!chunkIds.length) throw new Error("No chunks found for this search.");
+      // 2. Get chunk content
+      const { data: chunks, error: chunkError } = await supabase
+        .from("file_items")
+        .select("content")
+        .in("id", chunkIds);
+      if (chunkError || !chunks || chunks.length === 0) {
+        throw new Error("No chunk content found for these IDs.");
+      }
+      // 3. Build context and call OpenAI
+      const contextText = chunks.map(item => item.content).join("\n\n");
+      const prompt = `Here are excerpts from previous search results:\n${contextText}\n\nFollow-up question: ${followup}`;
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ search_id: searchId, followup_question: followup })
+        headers: {
+          "Authorization": `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: "You are a helpful assistant." },
+            { role: "user", content: prompt }
+          ]
+        })
       });
-      const data = await res.json();
-      setFollowupAnswer(data.answer || data.error || "No answer returned.");
+      const result = await response.json();
+      setFollowupAnswer(result.choices?.[0]?.message?.content || result.error || "No answer returned.");
     } catch (e) {
       setFollowupAnswer("Error: " + (e?.toString() || "Unknown error"));
     }
