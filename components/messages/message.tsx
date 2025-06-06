@@ -88,6 +88,11 @@ export const Message: FC<MessageProps> = ({
   const [pdfHighlightText, setPdfHighlightText] = useState<string | undefined>(undefined)
   const [pdfHighlightTexts, setPdfHighlightTexts] = useState<string[]>([]) // Add state for pdfHighlightTexts
 
+  // Follow-up Q&A state
+  const [followup, setFollowup] = useState("");
+  const [followupAnswer, setFollowupAnswer] = useState("");
+  const [isFollowupLoading, setIsFollowupLoading] = useState(false);
+
   const handleCopy = () => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(message.content)
@@ -201,6 +206,24 @@ export const Message: FC<MessageProps> = ({
       alert("Could not find file path for PDF.");
     }
   };
+
+  // Follow-up Q&A handler
+  async function handleFollowup() {
+    setIsFollowupLoading(true);
+    setFollowupAnswer("");
+    try {
+      const res = await fetch("/api/retrieval/followup/route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message_id: message.id, followup_question: followup })
+      });
+      const data = await res.json();
+      setFollowupAnswer(data.answer || data.error || "No answer returned.");
+    } catch (e) {
+      setFollowupAnswer("Error: " + (e?.toString() || "Unknown error"));
+    }
+    setIsFollowupLoading(false);
+  }
 
   return (
     <div
@@ -523,6 +546,30 @@ export const Message: FC<MessageProps> = ({
             setPdfHighlightTexts([])
           }}
         />
+      )}
+
+      {/* Follow-up Q&A UI */}
+      {fileItems && fileItems.length > 0 && (
+        <div className="mt-6 p-4 border rounded-xl bg-secondary">
+          <div className="font-bold mb-2">Ask a follow-up about these results:</div>
+          <div className="flex gap-2">
+            <input
+              className="flex-1 border rounded px-2 py-1"
+              type="text"
+              value={followup}
+              onChange={e => setFollowup(e.target.value)}
+              placeholder="Ask a follow-up question..."
+            />
+            <Button size="sm" onClick={handleFollowup} disabled={isFollowupLoading || !followup.trim()}>
+              {isFollowupLoading ? "Asking..." : "Ask"}
+            </Button>
+          </div>
+          {followupAnswer && (
+            <div className="mt-3 p-3 bg-background border rounded text-primary whitespace-pre-wrap">
+              {followupAnswer}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
