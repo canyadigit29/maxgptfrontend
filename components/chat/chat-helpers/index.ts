@@ -499,9 +499,10 @@ export const handleCreateMessages = async (
         fileItems: []
       },
       {
-        // PATCH: attach search_id to the assistant message for follow-up Q&A
-        message: searchId ? { ...createdMessages[1], search_id: searchId } : createdMessages[1],
-        fileItems: retrievedChunks.map(chunk => chunk.id)
+        // PATCH: attach search_id as a top-level property for follow-up Q&A
+        message: createdMessages[1],
+        fileItems: retrievedChunks.map(chunk => chunk.id),
+        ...(searchId ? { search_id: searchId } : {})
       }
     ]
 
