@@ -215,7 +215,7 @@ export const Message: FC<MessageProps> = ({
       const res = await fetch("/api/retrieval/followup/route", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message_id: message.id, followup_question: followup })
+        body: JSON.stringify({ search_id: message.id, followup_question: followup })
       });
       const data = await res.json();
       setFollowupAnswer(data.answer || data.error || "No answer returned.");
