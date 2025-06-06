@@ -400,12 +400,12 @@ export const handleCreateMessages = async (
   generatedText: string,
   newMessageImages: MessageImage[],
   isRegeneration: boolean,
-  // Update: retrievedFileItems is now documentChunks
-  retrievedChunks: any[], // Tables<"document_chunks">[] if you have a type
+  retrievedChunks: any[],
   setChatMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
-  setChatFileItems: React.Dispatch<React.SetStateAction<any[]>>, // Tables<"document_chunks">[] if you have a type
+  setChatFileItems: React.Dispatch<React.SetStateAction<any[]>>,
   setChatImages: React.Dispatch<React.SetStateAction<MessageImage[]>>,
-  selectedAssistant: Tables<"assistants"> | null
+  selectedAssistant: Tables<"assistants"> | null,
+  searchId?: string // PATCH: allow passing searchId
 ) => {
   const finalUserMessage: TablesInsert<"messages"> = {
     chat_id: currentChat.id,
@@ -499,7 +499,8 @@ export const handleCreateMessages = async (
         fileItems: []
       },
       {
-        message: createdMessages[1],
+        // PATCH: attach search_id to the assistant message for follow-up Q&A
+        message: searchId ? { ...createdMessages[1], search_id: searchId } : createdMessages[1],
         fileItems: retrievedChunks.map(chunk => chunk.id)
       }
     ]
@@ -539,10 +540,11 @@ export const handleBackendSearch = async (
     }
     const data = await response.json()
     console.debug("[run search] Backend search results", data)
-    // Return both summary and chunks
+    // Return both summary, chunks, and search_id
     return {
       summary: data.summary,
-      retrieved_chunks: data.retrieved_chunks || []
+      retrieved_chunks: data.retrieved_chunks || [],
+      search_id: data.search_id // <-- PATCH: include search_id
     }
   } catch (err) {
     console.error("[run search] Error in handleBackendSearch", err)

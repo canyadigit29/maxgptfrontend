@@ -212,10 +212,12 @@ export const Message: FC<MessageProps> = ({
     setIsFollowupLoading(true);
     setFollowupAnswer("");
     try {
+      // Use message.search_id if present, otherwise fallback to message.id
+      const searchId = (message as any).search_id || message.id;
       const res = await fetch("/api/retrieval/followup/route", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ search_id: message.id, followup_question: followup })
+        body: JSON.stringify({ search_id: searchId, followup_question: followup })
       });
       const data = await res.json();
       setFollowupAnswer(data.answer || data.error || "No answer returned.");

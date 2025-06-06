@@ -287,6 +287,7 @@ export const useChatHandler = () => {
       }
 
       let generatedText = ""
+      let searchId: string | undefined = undefined
       if (isRunSearch) {
         // Always store the message in chat history (handled below)
         // Call backend_search /chat endpoint
@@ -304,6 +305,7 @@ export const useChatHandler = () => {
         console.debug("[run search] Results processed", runSearchDebugInfo)
         // Use the summary as the assistant's message content
         generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
+        searchId = backendSearchResults.search_id
         console.debug("[run search] Assistant ready for follow-up with summary.")
       } else if (selectedTools.length > 0) {
         setToolInUse("Tools")
@@ -405,7 +407,8 @@ export const useChatHandler = () => {
         setChatMessages,
         setChatFileItems,
         setChatImages,
-        selectedAssistant
+        selectedAssistant,
+        searchId // PATCH: pass searchId to handleCreateMessages
       )
       setIsGenerating(false)
       setFirstTokenReceived(false)
