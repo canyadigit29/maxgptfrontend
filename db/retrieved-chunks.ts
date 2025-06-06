@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase/browser-client"
-import { TablesInsert } from "@/supabase/types"
+import { TablesInsert } from "@/types/supabase.types"
 
 // Insert a retrieved chunk link (for a search or message)
 export const createRetrievedChunk = async (retrievedChunk: TablesInsert<"retrieved_chunks">) => {
