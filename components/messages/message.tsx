@@ -477,7 +477,7 @@ export const Message: FC<MessageProps> = ({
                 {fileItems.map((chunk, idx) => (
                   <div key={chunk.id} className="rounded border border-gray-200 bg-white p-3 shadow-sm">
                     <div className="mb-1 text-xs text-gray-500">
-                      {chunk.file_name ?? chunk.name ?? "(No name)"} • {chunk.created_at ? chunk.created_at.slice(0, 10) : ""}
+                      {(chunk as any).file_name ?? (chunk as any).name ?? "(No name)"} • {chunk.created_at ? chunk.created_at.slice(0, 10) : ""}
                     </div>
                     <div className="whitespace-pre-line font-mono text-sm text-gray-800">
                       {chunk.content?.slice(0, 500) || "(No content)"}
