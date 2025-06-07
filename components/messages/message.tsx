@@ -26,8 +26,6 @@ import { MessageMarkdown } from "./message-markdown"
 import { PdfViewerDialog } from "../ui/pdf-viewer-dialog"
 import { getFileFromStorage } from "@/db/storage/files"
 import { AgendaEnrichResults } from "./agenda-enrich-results"
-import { getRetrievedChunksBySearchId } from "@/db/retrieved-chunks";
-import { supabase } from "@/lib/supabase/browser-client";
 
 const ICON_SIZE = 32
 
@@ -89,11 +87,6 @@ export const Message: FC<MessageProps> = ({
   const [selectedPdfFile, setSelectedPdfFile] = useState<any>(null)
   const [pdfHighlightText, setPdfHighlightText] = useState<string | undefined>(undefined)
   const [pdfHighlightTexts, setPdfHighlightTexts] = useState<string[]>([]) // Add state for pdfHighlightTexts
-
-  // Follow-up Q&A state
-  const [followup, setFollowup] = useState("");
-  const [followupAnswer, setFollowupAnswer] = useState("");
-  const [isFollowupLoading, setIsFollowupLoading] = useState(false);
 
   const handleCopy = () => {
     if (navigator.clipboard) {
@@ -208,49 +201,6 @@ export const Message: FC<MessageProps> = ({
       alert("Could not find file path for PDF.");
     }
   };
-
-  // Follow-up Q&A handler (frontend-only)
-  async function handleFollowup() {
-    setIsFollowupLoading(true);
-    setFollowupAnswer("");
-    try {
-      // Use message.search_id if present, otherwise fallback to message.id
-      const searchId = (message as any).search_id || message.id;
-      // 1. Get chunk IDs for this search
-      const chunkIds = await getRetrievedChunksBySearchId(searchId);
-      if (!chunkIds.length) throw new Error("No chunks found for this search.");
-      // 2. Get chunk content
-      const { data: chunks, error: chunkError } = await supabase
-        .from("file_items")
-        .select("content")
-        .in("id", chunkIds);
-      if (chunkError || !chunks || chunks.length === 0) {
-        throw new Error("No chunk content found for these IDs.");
-      }
-      // 3. Build context and call OpenAI
-      const contextText = chunks.map(item => item.content).join("\n\n");
-      const prompt = `Here are excerpts from previous search results:\n${contextText}\n\nFollow-up question: ${followup}`;
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: "You are a helpful assistant." },
-            { role: "user", content: prompt }
-          ]
-        })
-      });
-      const result = await response.json();
-      setFollowupAnswer(result.choices?.[0]?.message?.content || result.error || "No answer returned.");
-    } catch (e) {
-      setFollowupAnswer("Error: " + (e?.toString() || "Unknown error"));
-    }
-    setIsFollowupLoading(false);
-  }
 
   return (
     <div
@@ -573,30 +523,6 @@ export const Message: FC<MessageProps> = ({
             setPdfHighlightTexts([])
           }}
         />
-      )}
-
-      {/* Follow-up Q&A UI */}
-      {fileItems && fileItems.length > 0 && (
-        <div className="mt-6 p-4 border rounded-xl bg-secondary">
-          <div className="font-bold mb-2">Ask a follow-up about these results:</div>
-          <div className="flex gap-2">
-            <input
-              className="flex-1 border rounded px-2 py-1"
-              type="text"
-              value={followup}
-              onChange={e => setFollowup(e.target.value)}
-              placeholder="Ask a follow-up question..."
-            />
-            <Button size="sm" onClick={handleFollowup} disabled={isFollowupLoading || !followup.trim()}>
-              {isFollowupLoading ? "Asking..." : "Ask"}
-            </Button>
-          </div>
-          {followupAnswer && (
-            <div className="mt-3 p-3 bg-background border rounded text-primary whitespace-pre-wrap">
-              {followupAnswer}
-            </div>
-          )}
-        </div>
       )}
     </div>
   )
