@@ -191,6 +191,21 @@ export const useChatHandler = () => {
     }
   }
 
+  // Helper to classify user intent using the LLM intent endpoint
+  async function detectIntent(messageContent: string): Promise<string> {
+    try {
+      const response = await fetch("/api/chat/intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: messageContent })
+      })
+      const data = await response.json()
+      return data.intent || "general chat"
+    } catch (e) {
+      return "general chat"
+    }
+  }
+
   const handleSendMessage = async (
     messageContent: string,
     chatMessages: ChatMessage[],
@@ -208,35 +223,67 @@ export const useChatHandler = () => {
       const newAbortController = new AbortController()
       setAbortController(newAbortController)
 
-      // Detect 'run search' command
-      const isRunSearch = messageContent.trim().toLowerCase().startsWith("run search")
-      let retrievedFileItems: Tables<"file_items">[] = []
-      let backendSearchResults: any[] = []
-      let runSearchDebugInfo = {}
+      // INTENT DETECTION: Use LLM to classify the user's intent
+      const intent = await detectIntent(messageContent)
+      console.debug("[intent] classified as:", intent)
 
-      // Detect 'run ingestion' command
-      const isRunIngestion = messageContent.trim().toLowerCase().startsWith("run ingestion")
-      if (isRunIngestion) {
-        try {
-          // If backendUrl ends with /chat, remove it for ingestion endpoint
-          let backendUrl = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL || "https://your-backend-search-url/chat"
-          if (backendUrl.endsWith("/chat")) {
-            backendUrl = backendUrl.replace(/\/chat$/, "")
-          }
-          const response = await fetch(`${backendUrl}/background_ingest_all`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" }
+      // Route based on intent
+      if (intent === "semantic search") {
+        // Call backend_search /chat endpoint for semantic search
+        const backendSearchResults = await handleBackendSearch(
+          messageContent,
+          profile?.user_id || "",
+          selectedChat?.id || selectedWorkspace?.id || ""
+        )
+        setSearchSummary?.(backendSearchResults.summary)
+        const retrievedFileItems = backendSearchResults.retrieved_chunks.slice(0, 100)
+        const generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
+
+        // Always create or update chat and messages, so context is preserved
+        let currentChat = selectedChat ? { ...selectedChat } : null
+
+        if (!currentChat) {
+          currentChat = await handleCreateChat(
+            chatSettings!,
+            profile!,
+            selectedWorkspace!,
+            messageContent,
+            selectedAssistant!,
+            newMessageFiles,
+            setSelectedChat,
+            setChats,
+            setChatFiles
+          )
+        } else {
+          const updatedChat = await updateChat(currentChat.id, {
+            updated_at: new Date().toISOString()
           })
-          if (!response.ok) {
-            toast.error("Failed to start global ingestion.")
-          } else {
-            toast.success("Global ingestion started.")
-          }
-        } catch (err) {
-          toast.error("Error triggering global ingestion.")
+          setChats((prevChats: any) => {
+            const updatedChats = prevChats.map((prevChat: any) =>
+              prevChat.id === updatedChat.id ? updatedChat : prevChat
+            )
+            return updatedChats
+          })
         }
+        await handleCreateMessages(
+          chatMessages,
+          currentChat,
+          profile!,
+          modelData!,
+          messageContent,
+          generatedText,
+          newMessageImages,
+          isRegeneration,
+          retrievedFileItems,
+          setChatMessages,
+          setChatFileItems,
+          setChatImages,
+          selectedAssistant
+          // searchId argument removed to match handleCreateMessages signature
+        )
         setIsGenerating(false)
         setFirstTokenReceived(false)
+        console.debug("[chat] handleSendMessage completed")
         return
       }
 
@@ -287,27 +334,9 @@ export const useChatHandler = () => {
       }
 
       let generatedText = ""
-      let searchId: string | undefined = undefined
-      if (isRunSearch) {
-        // Always store the message in chat history (handled below)
-        // Call backend_search /chat endpoint
-        console.debug("[run search] Triggered for message:", messageContent)
-        const backendSearchResults = await handleBackendSearch(
-          messageContent,
-          profile?.user_id || "",
-          selectedChat?.id || selectedWorkspace?.id || ""
-        )
-        // Store summary in context for UI display
-        setSearchSummary?.(backendSearchResults.summary)
-        // Limit to 100 results
-        retrievedFileItems = backendSearchResults.retrieved_chunks.slice(0, 100)
-        runSearchDebugInfo = { backendSearchResultsCount: backendSearchResults.retrieved_chunks.length, usedCount: retrievedFileItems.length }
-        console.debug("[run search] Results processed", runSearchDebugInfo)
-        // Use the summary as the assistant's message content
-        generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
-        searchId = backendSearchResults.search_id
-        console.debug("[run search] Assistant ready for follow-up with summary.")
-      } else if (selectedTools.length > 0) {
+      // Removed the old isRunSearch block and related variables
+      // (No longer needed, intent detection now handles semantic search)
+      if (selectedTools.length > 0) {
         setToolInUse("Tools")
         const formattedMessages = await buildFinalMessages(
           payload,
@@ -403,7 +432,7 @@ export const useChatHandler = () => {
         generatedText,
         newMessageImages,
         isRegeneration,
-        retrievedFileItems,
+        [], // No retrievedChunks for general chat
         setChatMessages,
         setChatFileItems,
         setChatImages,
