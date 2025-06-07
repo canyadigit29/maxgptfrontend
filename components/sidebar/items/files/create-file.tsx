@@ -7,6 +7,7 @@ import { TablesInsert } from "@/supabase/types"
 import { createFileBasedOnExtension } from "@/db/files"
 import { FC, useContext, useState } from "react"
 import { toast } from "@/components/ui/use-toast"
+import React, { DragEvent } from "react"
 
 interface CreateFileProps {
   isOpen: boolean
@@ -64,6 +65,20 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
     onOpenChange(false)
   }
 
+  // Drag-and-drop handlers
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files)
+      setSelectedFiles(prev => [...prev, ...files])
+    }
+  }
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
   if (!profile) return null
   if (!selectedWorkspace) return null
 
@@ -76,6 +91,22 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
       onOpenChange={onOpenChange}
       renderInputs={() => (
         <>
+          <div
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            style={{
+              border: "2px dashed #888",
+              borderRadius: 8,
+              padding: 16,
+              marginBottom: 12,
+              textAlign: "center",
+              background: "#18181b",
+              color: "#fff",
+              cursor: "pointer"
+            }}
+          >
+            Drag and drop files here, or use the file picker below.
+          </div>
           <div className="space-y-1">
             <Label>Files</Label>
             <input
