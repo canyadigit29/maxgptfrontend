@@ -1,6 +1,5 @@
 import { ACCEPTED_FILE_TYPES } from "@/components/chat/chat-hooks/use-select-file-handler"
 import { SidebarCreateItem } from "@/components/sidebar/items/all/sidebar-create-item"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ChatbotUIContext } from "@/context/context"
 import { FILE_DESCRIPTION_MAX, FILE_NAME_MAX } from "@/db/limits"
@@ -79,11 +78,19 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
         <>
           <div className="space-y-1">
             <Label>Files</Label>
-            <Input
+            <input
               type="file"
               onChange={handleSelectedFile}
               accept={ACCEPTED_FILE_TYPES}
               multiple
+              style={{
+                border: '1px solid #333',
+                borderRadius: '6px',
+                padding: '8px',
+                width: '100%',
+                background: 'inherit',
+                color: 'inherit',
+              }}
             />
           </div>
           {selectedFiles.length > 0 && (
