@@ -519,39 +519,33 @@ export const handleCreateMessages = async (
 export const handleBackendSearch = async (
   userPrompt: string,
   userId: string,
-  sessionId: string,
-  contextChunkIds?: string[]
+  sessionId: string
 ) => {
   try {
-    console.debug("[semantic search] Calling backend_search /chat endpoint", { userPrompt, userId, sessionId, contextChunkIds })
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL || "https://backendsearch-production.up.railway.app/api/chat"
-    const body: any = {
-      user_prompt: userPrompt,
-      user_id: userId,
-      session_id: sessionId
-    }
-    if (contextChunkIds && contextChunkIds.length > 0) {
-      body.context_chunk_ids = contextChunkIds
-    }
+    console.debug("[run search] Calling backend_search /chat endpoint", { userPrompt, userId, sessionId })
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL || "https://your-backend-search-url/chat"
     const response = await fetch(backendUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+      body: JSON.stringify({
+        user_prompt: userPrompt,
+        user_id: userId,
+        session_id: sessionId
+      })
     })
     if (!response.ok) {
-      console.error("[semantic search] Backend search failed", response.status, await response.text())
+      console.error("[run search] Backend search failed", response.status, await response.text())
       throw new Error("Backend search failed")
     }
     const data = await response.json()
-    console.debug("[semantic search] Backend search results", data)
-    // Return summary, chunks, and extracted_query if present
+    console.debug("[run search] Backend search results", data)
+    // Return both summary and chunks
     return {
       summary: data.summary,
-      retrieved_chunks: data.retrieved_chunks || [],
-      extracted_query: data.extracted_query || undefined
+      retrieved_chunks: data.retrieved_chunks || []
     }
   } catch (err) {
-    console.error("[semantic search] Error in handleBackendSearch", err)
-    return { summary: undefined, retrieved_chunks: [], extracted_query: undefined }
+    console.error("[run search] Error in handleBackendSearch", err)
+    return { summary: undefined, retrieved_chunks: [] }
   }
 }
