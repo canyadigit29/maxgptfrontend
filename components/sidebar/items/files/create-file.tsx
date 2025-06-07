@@ -20,7 +20,6 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
   const [name, setName] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const [description, setDescription] = useState("")
-  const [relevantDate, setRelevantDate] = useState("") // ✅ NEW STATE
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
 
@@ -41,7 +40,6 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
         user_id: profile.user_id,
         name: fileNameWithoutExtension,
         description: "",
-        relevant_date: "",
         file_path: "",
         size: file.size,
         tokens: 0,
@@ -70,25 +68,6 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
   if (!profile) return null
   if (!selectedWorkspace) return null
 
-  
-  
-  const handleCreate = (fileRecord: TablesInsert<"files">) => {
-    const dateRegex = /^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-(\d{4})$/;
-
-    if (relevantDate && !dateRegex.test(relevantDate)) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Date Format",
-        description: "Please enter the date as MM-DD-YYYY (e.g. 06-01-2025)."
-      });
-      return null;
-    }
-
-    return fileRecord;
-  };
-
-
-
   return (
     <SidebarCreateItem
       contentType="files"
@@ -116,7 +95,7 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
                 ))}
               </ul>
               <button
-                className="mt-2 px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+                className="mt-2 rounded px-4 py-2 bg-blue-600 text-white disabled:opacity-50"
                 onClick={handleUploadAll}
                 disabled={uploading}
               >
