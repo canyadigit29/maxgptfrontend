@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase/browser-client"
 import { TablesInsert, TablesUpdate } from "@/supabase/types"
 import mammoth from "mammoth"
@@ -250,6 +249,16 @@ export const createFiles = async (
       workspace_id
     }))
   )
+
+  // Automatically trigger ingestion after batch upload
+  try {
+    await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/run-ingestion`, {
+      method: "POST"
+    });
+    console.log("✅ Ingestion triggered after batch upload");
+  } catch (err) {
+    console.error("❌ Ingestion call failed after batch upload", err);
+  }
 
   return createdFiles
 }
