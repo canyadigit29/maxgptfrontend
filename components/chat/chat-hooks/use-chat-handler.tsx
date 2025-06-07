@@ -9,7 +9,7 @@ import { buildFinalMessages } from "@/lib/build-prompt"
 import { Tables } from "@/supabase/types"
 import { ChatMessage, ChatPayload, LLMID, ModelProvider } from "@/types"
 import { useRouter } from "next/navigation"
-import { useContext, useEffect, useRef } from "react"
+import { useContext, useEffect, useRef, useState } from "react"
 import { LLM_LIST } from "../../../lib/models/llm/llm-list"
 import {
   createTempMessages,
@@ -23,6 +23,7 @@ import {
   validateChatSettings
 } from "../chat-helpers"
 import { toast } from "sonner"
+import { getRetrievedChunksBySearchId } from "@/db/retrieved-chunks"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -73,6 +74,9 @@ export const useChatHandler = () => {
   } = useContext(ChatbotUIContext)
 
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Add state for last search context
+  const [lastSearchContext, setLastSearchContext] = useState<string[] | null>(null)
 
   useEffect(() => {
     if (!isPromptPickerOpen || !isFilePickerOpen || !isToolPickerOpen) {
@@ -191,6 +195,17 @@ export const useChatHandler = () => {
     }
   }
 
+  // Utility: Detect if a message should trigger semantic search (initially simple, can be LLM-powered)
+  function shouldTriggerSemanticSearch(message: string) {
+    // TODO: Replace with LLM-powered intent detection for production
+    const searchKeywords = [
+      'search', 'find', 'look up', 'retrieve', 'show me', 'what is', 'where is', 'give me', 'list', 'summarize', 'tell me about'
+    ]
+    const lower = message.trim().toLowerCase()
+    // If message contains any search intent keyword, trigger search
+    return searchKeywords.some(kw => lower.startsWith(kw) || lower.includes(kw))
+  }
+
   const handleSendMessage = async (
     messageContent: string,
     chatMessages: ChatMessage[],
@@ -208,8 +223,8 @@ export const useChatHandler = () => {
       const newAbortController = new AbortController()
       setAbortController(newAbortController)
 
-      // Detect 'run search' command
-      const isRunSearch = messageContent.trim().toLowerCase().startsWith("run search")
+      // Detect semantic search intent
+      const isSemanticSearch = shouldTriggerSemanticSearch(messageContent)
       let retrievedFileItems: Tables<"file_items">[] = []
       let backendSearchResults: any[] = []
       let runSearchDebugInfo = {}
@@ -287,11 +302,10 @@ export const useChatHandler = () => {
       }
 
       let generatedText = ""
-      let searchId: string | undefined = undefined
-      if (isRunSearch) {
+      if (isSemanticSearch) {
         // Always store the message in chat history (handled below)
         // Call backend_search /chat endpoint
-        console.debug("[run search] Triggered for message:", messageContent)
+        console.debug("[semantic search] Triggered for message:", messageContent)
         const backendSearchResults = await handleBackendSearch(
           messageContent,
           profile?.user_id || "",
@@ -302,11 +316,32 @@ export const useChatHandler = () => {
         // Limit to 100 results
         retrievedFileItems = backendSearchResults.retrieved_chunks.slice(0, 100)
         runSearchDebugInfo = { backendSearchResultsCount: backendSearchResults.retrieved_chunks.length, usedCount: retrievedFileItems.length }
-        console.debug("[run search] Results processed", runSearchDebugInfo)
+        console.debug("[semantic search] Results processed", runSearchDebugInfo)
         // Use the summary as the assistant's message content
         generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
-        searchId = backendSearchResults.search_id
-        console.debug("[run search] Assistant ready for follow-up with summary.")
+        // Track context for follow-up
+        if (retrievedFileItems.length > 0) {
+          setLastSearchContext(retrievedFileItems.map(chunk => chunk.id))
+        }
+        // Optionally: use backendSearchResults.extracted_query for follow-up context
+        console.debug("[semantic search] Assistant ready for follow-up with summary.")
+      } else if (lastSearchContext && shouldTriggerSemanticSearch(messageContent)) {
+        // This is a follow-up: pass previous context to backend
+        console.debug("[follow-up] Using last search context:", lastSearchContext)
+        const backendSearchResults = await handleBackendSearch(
+          messageContent,
+          profile?.user_id || "",
+          selectedChat?.id || selectedWorkspace?.id || "",
+          lastSearchContext
+        )
+        setSearchSummary?.(backendSearchResults.summary)
+        retrievedFileItems = backendSearchResults.retrieved_chunks.slice(0, 100)
+        runSearchDebugInfo = { backendSearchResultsCount: backendSearchResults.retrieved_chunks.length, usedCount: retrievedFileItems.length }
+        generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
+        // Optionally: update lastSearchContext for further follow-ups
+        if (retrievedFileItems.length > 0) {
+          setLastSearchContext(retrievedFileItems.map(chunk => chunk.id))
+        }
       } else if (selectedTools.length > 0) {
         setToolInUse("Tools")
         const formattedMessages = await buildFinalMessages(
@@ -407,8 +442,7 @@ export const useChatHandler = () => {
         setChatMessages,
         setChatFileItems,
         setChatImages,
-        selectedAssistant,
-        searchId // PATCH: pass searchId to handleCreateMessages
+        selectedAssistant
       )
       setIsGenerating(false)
       setFirstTokenReceived(false)
