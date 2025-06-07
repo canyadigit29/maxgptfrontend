@@ -407,8 +407,8 @@ export const useChatHandler = () => {
         setChatMessages,
         setChatFileItems,
         setChatImages,
-        selectedAssistant,
-        searchId // PATCH: pass searchId to handleCreateMessages
+        selectedAssistant
+        // searchId argument removed to match handleCreateMessages signature
       )
       setIsGenerating(false)
       setFirstTokenReceived(false)
