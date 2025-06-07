@@ -21,3 +21,14 @@ export const getRetrievedChunksBySearchId = async (searchId: string) => {
   if (error) throw new Error(error.message)
   return data?.map(row => row.chunk_id) || []
 }
+
+// Fetch full chunk content for a list of chunk IDs from document_chunks
+export const getChunkContentsByIds = async (chunkIds: string[]) => {
+  if (!chunkIds.length) return [];
+  const { data, error } = await supabase
+    .from("document_chunks")
+    .select("id, content")
+    .in("id", chunkIds)
+  if (error) throw new Error(error.message)
+  return data || [];
+}

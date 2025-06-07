@@ -23,7 +23,7 @@ import {
   validateChatSettings
 } from "../chat-helpers"
 import { toast } from "sonner"
-import { createRetrievedChunk } from "@/db/retrieved-chunks"
+import { createRetrievedChunk, getRetrievedChunksBySearchId, getChunkContentsByIds } from "@/db/retrieved-chunks"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -74,6 +74,8 @@ export const useChatHandler = () => {
   } = useContext(ChatbotUIContext)
 
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
+  // Store the last searchId for follow-up Q&A context
+  let lastSearchIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!isPromptPickerOpen || !isFilePickerOpen || !isToolPickerOpen) {
@@ -289,6 +291,8 @@ export const useChatHandler = () => {
 
       let generatedText = ""
       let searchId: string | undefined = undefined
+      let followupContextChunks: any[] = []
+      const isRunSearch = messageContent.trim().toLowerCase().startsWith("run search")
       if (isRunSearch) {
         // Always store the message in chat history (handled below)
         // Call backend_search /chat endpoint
@@ -307,6 +311,7 @@ export const useChatHandler = () => {
         // Use the summary as the assistant's message content
         generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
         searchId = backendSearchResults.search_id
+        lastSearchIdRef.current = searchId // <-- Store for follow-up
         console.debug("[run search] Assistant ready for follow-up with summary.")
         // --- Store retrieved chunks for follow-up Q&A ---
         if (searchId && Array.isArray(backendSearchResults.retrieved_chunks)) {
@@ -322,109 +327,119 @@ export const useChatHandler = () => {
             }
           }
         }
-      } else if (selectedTools.length > 0) {
-        setToolInUse("Tools")
-        const formattedMessages = await buildFinalMessages(
-          payload,
-          profile!,
-          chatImages
-        )
-        const response = await fetch("/api/chat/tools", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            chatSettings: payload.chatSettings,
-            messages: formattedMessages,
-            selectedTools
+      } else if (lastSearchIdRef.current) {
+        // This is a follow-up Q&A: use only previous search's chunks as context
+        const chunkIds = await getRetrievedChunksBySearchId(lastSearchIdRef.current)
+        if (chunkIds.length > 0) {
+          followupContextChunks = await getChunkContentsByIds(chunkIds)
+        }
+      }
+
+      // When building the prompt, inject followupContextChunks as messageFileItems if present
+      let payload: ChatPayload = {
+        chatSettings: chatSettings!,
+        workspaceInstructions: selectedWorkspace!.instructions || "",
+        chatMessages: isRegeneration
+          ? [...chatMessages]
+          : [...chatMessages], // Will be updated below for run search
+        assistant: selectedChat?.assistant_id ? selectedAssistant : null,
+        messageFileItems: followupContextChunks.length > 0 ? followupContextChunks.map(c => ({ id: c.id, content: c.content })) : [],
+        chatFileItems: []
+      }
+
+      let tempAssistantChatMessage: ChatMessage = {
+        message: {
+          id: "temp-assistant-message",
+          chat_id: selectedChat?.id || "",
+          user_id: profile?.user_id || "",
+          assistant_id: selectedAssistant?.id || null,
+          role: "assistant",
+          content: "",
+          model: chatSettings?.model || "",
+          sequence_number: chatMessages.length + 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          image_paths: []
+        },
+        fileItems: []
+      }
+
+      if (isRunSearch) {
+        // For 'run search', skip embedding and modelData logic, but still create temp messages and continue pipeline
+        let currentChat = selectedChat ? { ...selectedChat } : null
+
+        // Always create or update chat and messages, so context is preserved
+        if (!currentChat) {
+          currentChat = await handleCreateChat(
+            chatSettings!,
+            profile!,
+            selectedWorkspace!,
+            messageContent,
+            selectedAssistant!,
+            newMessageFiles,
+            setSelectedChat,
+            setChats,
+            setChatFiles
+          )
+        } else {
+          const updatedChat = await updateChat(currentChat.id, {
+            updated_at: new Date().toISOString()
           })
-        })
-        setToolInUse("none")
-        generatedText = await processResponse(
-          response,
-          isRegeneration
-            ? payload.chatMessages[payload.chatMessages.length - 1]
-            : tempAssistantChatMessage,
-          true,
-          newAbortController,
-          setFirstTokenReceived,
-          setChatMessages,
-          setToolInUse
-        )
-      } else if (modelData!.provider === "ollama") {
-        generatedText = await handleLocalChat(
-          payload,
-          profile!,
-          chatSettings!,
-          tempAssistantChatMessage,
-          isRegeneration,
-          newAbortController,
-          setIsGenerating,
-          setFirstTokenReceived,
-          setChatMessages,
-          setToolInUse
-        )
-      } else {
-        generatedText = await handleHostedChat(
-          payload,
+          setChats((prevChats: any) => {
+            const updatedChats = prevChats.map((prevChat: any) =>
+              prevChat.id === updatedChat.id ? updatedChat : prevChat
+            )
+            return updatedChats
+          })
+        }
+        await handleCreateMessages(
+          chatMessages,
+          currentChat,
           profile!,
           modelData!,
-          tempAssistantChatMessage,
-          isRegeneration,
-          newAbortController,
-          newMessageImages,
-          chatImages,
-          setIsGenerating,
-          setFirstTokenReceived,
-          setChatMessages,
-          setToolInUse
-        )
-      }
-
-      // For 'run search', skip embedding and modelData logic, but still create temp messages and continue pipeline
-      let currentChat = selectedChat ? { ...selectedChat } : null
-
-      // Always create or update chat and messages, so context is preserved
-      if (!currentChat) {
-        currentChat = await handleCreateChat(
-          chatSettings!,
-          profile!,
-          selectedWorkspace!,
           messageContent,
-          selectedAssistant!,
-          newMessageFiles,
-          setSelectedChat,
-          setChats,
-          setChatFiles
+          generatedText,
+          newMessageImages,
+          isRegeneration,
+          retrievedFileItems,
+          setChatMessages,
+          setChatFileItems,
+          setChatImages,
+          selectedAssistant
+          // searchId argument removed to match handleCreateMessages signature
         )
       } else {
-        const updatedChat = await updateChat(currentChat.id, {
-          updated_at: new Date().toISOString()
-        })
-        setChats((prevChats: any) => {
-          const updatedChats = prevChats.map((prevChat: any) =>
-            prevChat.id === updatedChat.id ? updatedChat : prevChat
+        if (modelData!.provider === "ollama") {
+          generatedText = await handleLocalChat(
+            payload,
+            profile!,
+            chatSettings!,
+            tempAssistantChatMessage,
+            isRegeneration,
+            newAbortController,
+            setIsGenerating,
+            setFirstTokenReceived,
+            setChatMessages,
+            setToolInUse
           )
-          return updatedChats
-        })
+        } else {
+          generatedText = await handleHostedChat(
+            payload,
+            profile!,
+            modelData!,
+            tempAssistantChatMessage,
+            isRegeneration,
+            newAbortController,
+            newMessageImages,
+            chatImages,
+            setIsGenerating,
+            setFirstTokenReceived,
+            setChatMessages,
+            setToolInUse
+          )
+        }
       }
-      await handleCreateMessages(
-        chatMessages,
-        currentChat,
-        profile!,
-        modelData!,
-        messageContent,
-        generatedText,
-        newMessageImages,
-        isRegeneration,
-        retrievedFileItems,
-        setChatMessages,
-        setChatFileItems,
-        setChatImages,
-        selectedAssistant
-        // searchId argument removed to match handleCreateMessages signature
-      )
+
       setIsGenerating(false)
       setFirstTokenReceived(false)
       console.debug("[chat] handleSendMessage completed")
