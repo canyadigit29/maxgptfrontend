@@ -211,6 +211,7 @@ export const useChatHandler = () => {
     chatMessages: ChatMessage[],
     isRegeneration: boolean
   ) => {
+    let generatedText = ""; // Ensure generatedText is always declared before use
     const startingInput = messageContent
     try {
       // Debug: log the incoming message
