@@ -471,15 +471,15 @@ export const Message: FC<MessageProps> = ({
         {/* Sources Modal */}
         {showSourcesModal && (
           <Dialog open={showSourcesModal} onOpenChange={setShowSourcesModal}>
-            <DialogContent className="max-w-2xl w-full">
+            <DialogContent className="w-full max-w-2xl">
               <DialogTitle>Sources for this answer</DialogTitle>
               <div className="mt-4 space-y-4">
                 {fileItems.map((chunk, idx) => (
                   <div key={chunk.id} className="rounded border border-gray-200 bg-white p-3 shadow-sm">
                     <div className="mb-1 text-xs text-gray-500">
-                      {chunk.file_name || chunk.name} • {chunk.created_at?.slice(0, 10)}
+                      {chunk.file_name ?? chunk.name ?? "(No name)"} • {chunk.created_at ? chunk.created_at.slice(0, 10) : ""}
                     </div>
-                    <div className="text-sm font-mono whitespace-pre-line text-gray-800">
+                    <div className="whitespace-pre-line font-mono text-sm text-gray-800">
                       {chunk.content?.slice(0, 500) || "(No content)"}
                       {chunk.content && chunk.content.length > 500 && <span className="text-gray-400">... (truncated)</span>}
                     </div>
@@ -488,7 +488,7 @@ export const Message: FC<MessageProps> = ({
               </div>
               <div className="mt-6 flex justify-end">
                 <button
-                  className="rounded bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700 transition"
+                  className="px-4 py-2 font-semibold text-white bg-blue-600 rounded hover:bg-blue-700 transition"
                   onClick={() => setShowSourcesModal(false)}
                 >
                   Close
