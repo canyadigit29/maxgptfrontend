@@ -195,15 +195,14 @@ export const useChatHandler = () => {
     }
   }
 
-  // Utility: Detect if a message should trigger semantic search (initially simple, can be LLM-powered)
+  // Utility: Detect if a message should trigger semantic search (stricter intent detection)
   function shouldTriggerSemanticSearch(message: string) {
-    // TODO: Replace with LLM-powered intent detection for production
+    // Only trigger if message starts with clear search intent keywords
     const searchKeywords = [
-      'search', 'find', 'look up', 'retrieve', 'show me', 'what is', 'where is', 'give me', 'list', 'summarize', 'tell me about'
+      'search', 'find', 'look up', 'retrieve', 'show me', 'list', 'summarize', 'give me a summary of', 'scan for', 'document search', 'file search'
     ]
     const lower = message.trim().toLowerCase()
-    // If message contains any search intent keyword, trigger search
-    return searchKeywords.some(kw => lower.startsWith(kw) || lower.includes(kw))
+    return searchKeywords.some(kw => lower.startsWith(kw))
   }
 
   const handleSendMessage = async (
@@ -317,8 +316,12 @@ export const useChatHandler = () => {
         retrievedFileItems = backendSearchResults.retrieved_chunks.slice(0, 100)
         runSearchDebugInfo = { backendSearchResultsCount: backendSearchResults.retrieved_chunks.length, usedCount: retrievedFileItems.length }
         console.debug("[semantic search] Results processed", runSearchDebugInfo)
-        // Use the summary as the assistant's message content
-        generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
+        // If there are search results, inject them for LLM context, but do NOT set a summary fallback
+        if (retrievedFileItems.length > 0) {
+          // Do not set generatedText here; let the LLM respond naturally to the prompt and context
+        } else {
+          // If no results, just let the LLM respond as usual
+        }
         // Track context for follow-up
         if (retrievedFileItems.length > 0) {
           setLastSearchContext(retrievedFileItems.map(chunk => chunk.id))
@@ -337,10 +340,11 @@ export const useChatHandler = () => {
         setSearchSummary?.(backendSearchResults.summary)
         retrievedFileItems = backendSearchResults.retrieved_chunks.slice(0, 100)
         runSearchDebugInfo = { backendSearchResultsCount: backendSearchResults.retrieved_chunks.length, usedCount: retrievedFileItems.length }
-        generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
-        // Optionally: update lastSearchContext for further follow-ups
+        // If there are search results, inject them for LLM context, but do NOT set a summary fallback
         if (retrievedFileItems.length > 0) {
-          setLastSearchContext(retrievedFileItems.map(chunk => chunk.id))
+          // Do not set generatedText here; let the LLM respond naturally
+        } else {
+          // If no results, just let the LLM respond as usual
         }
       } else if (selectedTools.length > 0) {
         setToolInUse("Tools")
