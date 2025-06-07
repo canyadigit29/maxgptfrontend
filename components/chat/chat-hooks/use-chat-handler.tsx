@@ -23,6 +23,7 @@ import {
   validateChatSettings
 } from "../chat-helpers"
 import { toast } from "sonner"
+import { createRetrievedChunk } from "@/db/retrieved-chunks"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -307,6 +308,20 @@ export const useChatHandler = () => {
         generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
         searchId = backendSearchResults.search_id
         console.debug("[run search] Assistant ready for follow-up with summary.")
+        // --- Store retrieved chunks for follow-up Q&A ---
+        if (searchId && Array.isArray(backendSearchResults.retrieved_chunks)) {
+          for (const chunk of backendSearchResults.retrieved_chunks) {
+            try {
+              await createRetrievedChunk({
+                search_id: searchId,
+                chunk_id: chunk.id,
+                user_id: profile?.user_id || ""
+              })
+            } catch (e) {
+              console.error("Failed to store retrieved chunk", chunk.id, e)
+            }
+          }
+        }
       } else if (selectedTools.length > 0) {
         setToolInUse("Tools")
         const formattedMessages = await buildFinalMessages(
