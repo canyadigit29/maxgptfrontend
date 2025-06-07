@@ -20,11 +20,8 @@ export async function POST(req: NextRequest) {
     temperature: 0
   });
 
-  const intent = completion.choices[0].message.content
-    .toLowerCase()
-    .includes("follow-up")
-    ? "follow-up"
-    : "new topic";
+  const content = completion.choices[0]?.message?.content ?? "";
+  const intent = content.toLowerCase().includes("follow-up") ? "follow-up" : "new topic";
 
   return NextResponse.json({ intent });
 }
