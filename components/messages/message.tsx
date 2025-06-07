@@ -14,7 +14,7 @@ import {
   IconPencil
 } from "@tabler/icons-react"
 import Image from "next/image"
-import { useState, useContext, FC, useRef, useEffect } from "react"
+import { FC, useContext, useEffect, useRef, useState } from "react"
 import { ModelIcon } from "../models/model-icon"
 import { Button } from "../ui/button"
 import { FileIcon } from "../ui/file-icon"
@@ -26,15 +26,9 @@ import { MessageMarkdown } from "./message-markdown"
 import { PdfViewerDialog } from "../ui/pdf-viewer-dialog"
 import { getFileFromStorage } from "@/db/storage/files"
 import { AgendaEnrichResults } from "./agenda-enrich-results"
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle
-} from "../ui/dialog"
 
 const ICON_SIZE = 32
 
-// Add a prop for context awareness (optional, fallback to context if needed)
 interface MessageProps {
   message: Tables<"messages">
   fileItems: Tables<"file_items">[]
@@ -43,8 +37,6 @@ interface MessageProps {
   onStartEdit: (message: Tables<"messages">) => void
   onCancelEdit: () => void
   onSubmitEdit: (value: string, sequenceNumber: number) => void
-  isFollowup?: boolean;
-  onClearContext?: () => void;
 }
 
 export const Message: FC<MessageProps> = ({
@@ -54,9 +46,7 @@ export const Message: FC<MessageProps> = ({
   isLast,
   onStartEdit,
   onCancelEdit,
-  onSubmitEdit,
-  isFollowup,
-  onClearContext,
+  onSubmitEdit
 }) => {
   const {
     assistants,
@@ -97,7 +87,6 @@ export const Message: FC<MessageProps> = ({
   const [selectedPdfFile, setSelectedPdfFile] = useState<any>(null)
   const [pdfHighlightText, setPdfHighlightText] = useState<string | undefined>(undefined)
   const [pdfHighlightTexts, setPdfHighlightTexts] = useState<string[]>([]) // Add state for pdfHighlightTexts
-  const [showSourcesModal, setShowSourcesModal] = useState(false)
 
   const handleCopy = () => {
     if (navigator.clipboard) {
@@ -224,20 +213,6 @@ export const Message: FC<MessageProps> = ({
       onKeyDown={handleKeyDown}
     >
       <div className="relative flex w-full flex-col p-6 sm:w-[550px] sm:px-0 md:w-[650px] lg:w-[650px] xl:w-[700px]">
-        {/* Show context badge and clear button if this is a follow-up */}
-        {isFollowup && message.role === "assistant" && (
-          <div className="mb-2 flex items-center gap-2">
-            <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Based on previous search</span>
-            {onClearContext && (
-              <button
-                className="ml-2 text-xs text-blue-600 underline hover:opacity-70"
-                onClick={onClearContext}
-              >
-                Clear context
-              </button>
-            )}
-          </div>
-        )}
         <div className="absolute right-5 top-7 sm:right-0">
           <MessageActions
             onCopy={handleCopy}
@@ -456,46 +431,6 @@ export const Message: FC<MessageProps> = ({
               </>
             )}
           </div>
-        )}
-
-        {/* Show Sources button for assistant messages with fileItems */}
-        {message.role === "assistant" && fileItems.length > 0 && (
-          <button
-            className="mb-2 self-start rounded bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800 hover:bg-blue-200 transition"
-            onClick={() => setShowSourcesModal(true)}
-          >
-            Show Sources
-          </button>
-        )}
-
-        {/* Sources Modal */}
-        {showSourcesModal && (
-          <Dialog open={showSourcesModal} onOpenChange={setShowSourcesModal}>
-            <DialogContent className="w-full max-w-2xl">
-              <DialogTitle>Sources for this answer</DialogTitle>
-              <div className="mt-4 space-y-4">
-                {fileItems.map((chunk, idx) => (
-                  <div key={chunk.id} className="rounded border border-gray-200 bg-white p-3 shadow-sm">
-                    <div className="mb-1 text-xs text-gray-500">
-                      {(chunk as any).file_name ?? (chunk as any).name ?? "(No name)"} • {chunk.created_at ? chunk.created_at.slice(0, 10) : ""}
-                    </div>
-                    <div className="whitespace-pre-line font-mono text-sm text-gray-800">
-                      {chunk.content?.slice(0, 500) || "(No content)"}
-                      {chunk.content && chunk.content.length > 500 && <span className="text-gray-400">... (truncated)</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 flex justify-end">
-                <button
-                  className="px-4 py-2 font-semibold text-white bg-blue-600 rounded hover:bg-blue-700 transition"
-                  onClick={() => setShowSourcesModal(false)}
-                >
-                  Close
-                </button>
-              </div>
-            </DialogContent>
-          </Dialog>
         )}
 
         <div className="mt-3 flex flex-wrap gap-2">
