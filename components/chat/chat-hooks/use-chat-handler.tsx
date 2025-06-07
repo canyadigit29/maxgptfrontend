@@ -9,7 +9,7 @@ import { buildFinalMessages } from "@/lib/build-prompt"
 import { Tables } from "@/supabase/types"
 import { ChatMessage, ChatPayload, LLMID, ModelProvider } from "@/types"
 import { useRouter } from "next/navigation"
-import { useContext, useEffect, useRef } from "react"
+import { useContext, useEffect, useRef, useState } from "react"
 import { LLM_LIST } from "../../../lib/models/llm/llm-list"
 import {
   createTempMessages,
@@ -206,6 +206,25 @@ export const useChatHandler = () => {
     }
   }
 
+  // Add state for last search summary and chunks
+  const [lastSearchSummary, setLastSearchSummary] = useState<string | null>(null)
+  const [lastSearchChunks, setLastSearchChunks] = useState<any[]>([])
+
+  // Helper to classify follow-up using the LLM followup endpoint
+  async function detectFollowup(previousSummary: string, newMessage: string): Promise<string> {
+    try {
+      const response = await fetch("/api/chat/followup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ previousSummary, newMessage })
+      })
+      const data = await response.json()
+      return data.intent || "new topic"
+    } catch (e) {
+      return "new topic"
+    }
+  }
+
   const handleSendMessage = async (
     messageContent: string,
     chatMessages: ChatMessage[],
@@ -252,6 +271,8 @@ export const useChatHandler = () => {
           selectedChat?.id || selectedWorkspace?.id || ""
         )
         setSearchSummary?.(backendSearchResults.summary)
+        setLastSearchSummary(backendSearchResults.summary)
+        setLastSearchChunks(backendSearchResults.retrieved_chunks || [])
         const retrievedFileItems = backendSearchResults.retrieved_chunks.slice(0, 100)
         const generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
 
@@ -301,6 +322,122 @@ export const useChatHandler = () => {
         setFirstTokenReceived(false)
         console.debug("[chat] handleSendMessage completed")
         return
+      }
+
+      // --- FOLLOW-UP DETECTION LOGIC ---
+      if (lastSearchSummary && lastSearchChunks.length > 0) {
+        const followupIntent = await detectFollowup(lastSearchSummary, messageContent)
+        if (followupIntent === "follow-up") {
+          // Build a system prompt with both summary and chunks
+          const chunksText = lastSearchChunks.map(chunk => chunk.content).join("\n\n")
+          const followupPrompt = `You are an assistant. Answer the user's question using only the following previous search results and content chunks. Do not use outside knowledge.\n\nSummary:\n${lastSearchSummary}\n\nChunks:\n${chunksText}`
+          const chatSettingsWithFollowupPrompt = {
+            ...chatSettings!,
+            prompt: followupPrompt
+          }
+          let payload: ChatPayload = {
+            chatSettings: chatSettingsWithFollowupPrompt,
+            workspaceInstructions: selectedWorkspace!.instructions || "",
+            chatMessages: isRegeneration ? [...chatMessages] : [...chatMessages],
+            assistant: selectedChat?.assistant_id ? selectedAssistant : null,
+            messageFileItems: [],
+            chatFileItems: []
+          }
+          let tempAssistantChatMessage: ChatMessage = {
+            message: {
+              id: "temp-assistant-message",
+              chat_id: selectedChat?.id || "",
+              user_id: profile?.user_id || "",
+              assistant_id: selectedAssistant?.id || null,
+              role: "assistant",
+              content: "",
+              model: chatSettings?.model || "",
+              sequence_number: chatMessages.length + 1,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              image_paths: []
+            },
+            fileItems: []
+          }
+          // Use the normal LLM call with the followup prompt
+          if (modelData!.provider === "ollama") {
+            generatedText = await handleLocalChat(
+              payload,
+              profile!,
+              chatSettings!,
+              tempAssistantChatMessage,
+              isRegeneration,
+              newAbortController,
+              setIsGenerating,
+              setFirstTokenReceived,
+              setChatMessages,
+              setToolInUse
+            )
+          } else {
+            generatedText = await handleHostedChat(
+              payload,
+              profile!,
+              modelData!,
+              tempAssistantChatMessage,
+              isRegeneration,
+              newAbortController,
+              newMessageImages,
+              chatImages,
+              setIsGenerating,
+              setFirstTokenReceived,
+              setChatMessages,
+              setToolInUse
+            )
+          }
+          // Save the message as usual
+          let currentChat = selectedChat ? { ...selectedChat } : null
+          if (!currentChat) {
+            currentChat = await handleCreateChat(
+              chatSettings!,
+              profile!,
+              selectedWorkspace!,
+              messageContent,
+              selectedAssistant!,
+              newMessageFiles,
+              setSelectedChat,
+              setChats,
+              setChatFiles
+            )
+          } else {
+            const updatedChat = await updateChat(currentChat.id, {
+              updated_at: new Date().toISOString()
+            })
+            setChats((prevChats: any) => {
+              const updatedChats = prevChats.map((prevChat: any) =>
+                prevChat.id === updatedChat.id ? updatedChat : prevChat
+              )
+              return updatedChats
+            })
+          }
+          await handleCreateMessages(
+            chatMessages,
+            currentChat,
+            profile!,
+            modelData!,
+            messageContent,
+            generatedText,
+            newMessageImages,
+            isRegeneration,
+            [], // No new retrievedChunks for follow-up
+            setChatMessages,
+            setChatFileItems,
+            setChatImages,
+            selectedAssistant
+          )
+          setIsGenerating(false)
+          setFirstTokenReceived(false)
+          console.debug("[chat] handleSendMessage completed (follow-up)")
+          return
+        } else {
+          // Not a follow-up, clear last search context
+          setLastSearchSummary(null)
+          setLastSearchChunks([])
+        }
       }
 
       // For general chat, ensure the LLM gets a ChatGPT-style system prompt
