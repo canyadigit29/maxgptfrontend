@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label"
 import { ChatbotUIContext } from "@/context/context"
 import { FILE_DESCRIPTION_MAX, FILE_NAME_MAX } from "@/db/limits"
 import { TablesInsert } from "@/supabase/types"
+import { createFileBasedOnExtension } from "@/db/files"
 import { FC, useContext, useState } from "react"
 import { toast } from "@/components/ui/use-toast"
 
@@ -20,17 +21,50 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
   const [isTyping, setIsTyping] = useState(false)
   const [description, setDescription] = useState("")
   const [relevantDate, setRelevantDate] = useState("") // ✅ NEW STATE
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [uploading, setUploading] = useState(false)
 
   const handleSelectedFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return
+    const files = Array.from(e.target.files)
+    setSelectedFiles(files)
+  }
 
-    const file = e.target.files[0]
-    if (!file) return
-
-    setSelectedFile(file)
-    const fileNameWithoutExtension = file.name.split(".").slice(0, -1).join(".")
-    setName(fileNameWithoutExtension)
+  // Handles uploading all files in the queue
+  const handleUploadAll = async () => {
+    if (!profile || !selectedWorkspace || uploading || selectedFiles.length === 0) return
+    setUploading(true)
+    for (const file of selectedFiles) {
+      const fileNameWithoutExtension = file.name.split(".").slice(0, -1).join(".")
+      const extension = file.name.split(".").pop() || ""
+      const fileRecord: TablesInsert<"files"> = {
+        user_id: profile.user_id,
+        name: fileNameWithoutExtension,
+        description: "",
+        relevant_date: "",
+        file_path: "",
+        size: file.size,
+        tokens: 0,
+        type: extension
+      }
+      try {
+        await createFileBasedOnExtension(
+          file,
+          fileRecord,
+          selectedWorkspace.id,
+          selectedWorkspace.embeddings_provider as "openai" | "local"
+        )
+      } catch (err) {
+        toast({
+          variant: "destructive",
+          title: `Failed to upload ${file.name}`,
+          description: String(err)
+        })
+      }
+    }
+    setUploading(false)
+    setSelectedFiles([])
+    onOpenChange(false)
   }
 
   if (!profile) return null
@@ -58,61 +92,38 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
   return (
     <SidebarCreateItem
       contentType="files"
-            createState={
-        {
-          file: selectedFile,
-          user_id: profile.user_id,
-          name,
-          description,
-          relevant_date: relevantDate, // ✅ ADDED TO PAYLOAD
-          file_path: "",
-          size: selectedFile?.size || 0,
-          tokens: 0,
-          type: selectedFile?.type || 0
-        } as TablesInsert<"files">
-      }
+      createState={{}} // Not used for batch upload
       isOpen={isOpen}
       isTyping={isTyping}
       onOpenChange={onOpenChange}
       renderInputs={() => (
         <>
           <div className="space-y-1">
-            <Label>File</Label>
+            <Label>Files</Label>
             <Input
               type="file"
               onChange={handleSelectedFile}
               accept={ACCEPTED_FILE_TYPES}
+              multiple
             />
           </div>
-
-          <div className="space-y-1">
-            <Label>Name</Label>
-            <Input
-              placeholder="File name..."
-              value={name}
-              onChange={e => setName(e.target.value)}
-              maxLength={FILE_NAME_MAX}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <Label>Description</Label>
-            <Input
-              placeholder="File description..."
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              maxLength={FILE_DESCRIPTION_MAX}
-            />
-          </div>
-
-          <div className="space-y-1"> {/* ✅ NEW FIELD */}
-            <Label>Relevant Date</Label>
-            <Input
-              placeholder="MM-DD-YYYY (e.g. 06-01-2025)" title="Enter date as MM-DD-YYYY (e.g. 06-01-2025)"
-              value={relevantDate}
-              onChange={e => setRelevantDate(e.target.value)}
-            />
-          </div>
+          {selectedFiles.length > 0 && (
+            <div className="space-y-1">
+              <Label>Files to upload:</Label>
+              <ul className="ml-4 list-disc">
+                {selectedFiles.map((file, idx) => (
+                  <li key={file.name + idx}>{file.name}</li>
+                ))}
+              </ul>
+              <button
+                className="mt-2 px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+                onClick={handleUploadAll}
+                disabled={uploading}
+              >
+                {uploading ? "Uploading..." : `Upload ${selectedFiles.length} file(s)`}
+              </button>
+            </div>
+          )}
         </>
       )}
     />
