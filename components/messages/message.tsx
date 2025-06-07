@@ -26,7 +26,11 @@ import { MessageMarkdown } from "./message-markdown"
 import { PdfViewerDialog } from "../ui/pdf-viewer-dialog"
 import { getFileFromStorage } from "@/db/storage/files"
 import { AgendaEnrichResults } from "./agenda-enrich-results"
-import { Dialog } from "../ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle
+} from "../ui/dialog"
 
 const ICON_SIZE = 32
 
@@ -467,8 +471,8 @@ export const Message: FC<MessageProps> = ({
         {/* Sources Modal */}
         {showSourcesModal && (
           <Dialog open={showSourcesModal} onOpenChange={setShowSourcesModal}>
-            <Dialog.Content className="max-w-2xl w-full">
-              <Dialog.Title>Sources for this answer</Dialog.Title>
+            <DialogContent className="max-w-2xl w-full">
+              <DialogTitle>Sources for this answer</DialogTitle>
               <div className="mt-4 space-y-4">
                 {fileItems.map((chunk, idx) => (
                   <div key={chunk.id} className="rounded border border-gray-200 bg-white p-3 shadow-sm">
@@ -490,7 +494,7 @@ export const Message: FC<MessageProps> = ({
                   Close
                 </button>
               </div>
-            </Dialog.Content>
+            </DialogContent>
           </Dialog>
         )}
 
