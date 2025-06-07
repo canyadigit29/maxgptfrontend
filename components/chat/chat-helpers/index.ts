@@ -542,7 +542,8 @@ export const handleBackendSearch = async (
     // Return both summary and chunks
     return {
       summary: data.summary,
-      retrieved_chunks: data.retrieved_chunks || []
+      retrieved_chunks: data.retrieved_chunks || [],
+      search_id: data.search_id || null // Add search_id for compatibility
     }
   } catch (err) {
     console.error("[run search] Error in handleBackendSearch", err)
