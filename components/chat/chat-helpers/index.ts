@@ -523,8 +523,8 @@ export const handleBackendSearch = async (
 ) => {
   try {
     console.debug("[run search] Calling backend_search /chat endpoint", { userPrompt, userId, sessionId })
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL || "https://your-backend-search-url/chat"
-    const response = await fetch(backendUrl, {
+    const backendBase = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL || "https://your-backend-search-url"
+    const response = await fetch(`${backendBase}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
