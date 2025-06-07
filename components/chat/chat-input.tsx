@@ -33,9 +33,6 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
 
   const [isTyping, setIsTyping] = useState<boolean>(false)
 
-  // Add prop/state for follow-up context (simulate with a placeholder for now)
-  const [followupContextActive, setFollowupContextActive] = useState(false)
-
   const {
     selectedEnrichFile,
     setSelectedEnrichFile,
@@ -252,27 +249,8 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
     handleSendMessage(messageContent, chatMessages, isRegeneration)
   }
 
-  // Handler to clear context
-  const handleClearContext = () => {
-    setFollowupContextActive(false)
-    toast.success("Context cleared. You can start a new search.")
-  }
-
   return (
-    <div className="w-full">
-      {/* Context info box (show only if follow-up context is active) */}
-      {followupContextActive && (
-        <div className="mb-2 flex items-center justify-between rounded bg-blue-50 px-3 py-2 text-sm text-blue-800 font-medium border border-blue-200">
-          <span>Follow-up mode: Your next message will use previous search context.</span>
-          <button
-            className="ml-4 text-xs font-semibold text-blue-700 underline hover:opacity-80"
-            onClick={handleClearContext}
-          >
-            Clear context
-          </button>
-        </div>
-      )}
-
+    <>
       <div className="flex flex-col flex-wrap justify-center gap-2">
         <ChatFilesDisplay />
 
@@ -384,6 +362,6 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
           )}
         </div>
       </div>
-    </div>
+    </>
   )
 }
