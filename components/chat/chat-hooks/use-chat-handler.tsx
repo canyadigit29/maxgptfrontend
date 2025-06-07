@@ -302,20 +302,20 @@ export const useChatHandler = () => {
         return
       }
 
-      // Move b64Images declaration above its first use
-      const b64Images = newMessageImages.map((image: any) => image.base64)
-
+      // For general chat, ensure the LLM gets a ChatGPT-style system prompt
+      // Add/override the prompt in chatSettings
+      const chatSettingsWithSystemPrompt = {
+        ...chatSettings!,
+        prompt: chatSettings?.prompt || "You are a helpful AI assistant. Answer the user's questions conversationally and helpfully, just like ChatGPT."
+      }
       let payload: ChatPayload = {
-        chatSettings: chatSettings!,
+        chatSettings: chatSettingsWithSystemPrompt,
         workspaceInstructions: selectedWorkspace!.instructions || "",
-        chatMessages: isRegeneration
-          ? [...chatMessages]
-          : [...chatMessages], // Will be updated below for run search
+        chatMessages: isRegeneration ? [...chatMessages] : [...chatMessages],
         assistant: selectedChat?.assistant_id ? selectedAssistant : null,
         messageFileItems: [],
         chatFileItems: []
       }
-
       let tempAssistantChatMessage: ChatMessage = {
         message: {
           id: "temp-assistant-message",
@@ -333,7 +333,9 @@ export const useChatHandler = () => {
         fileItems: []
       }
 
-      let generatedText = ""
+      // Move b64Images declaration above its first use
+      const b64Images = newMessageImages.map((image: any) => image.base64)
+
       // Removed the old isRunSearch block and related variables
       // (No longer needed, intent detection now handles semantic search)
       if (selectedTools.length > 0) {
