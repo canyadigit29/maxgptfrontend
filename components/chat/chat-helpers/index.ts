@@ -524,7 +524,7 @@ export const handleBackendSearch = async (
 ) => {
   try {
     console.debug("[semantic search] Calling backend_search /chat endpoint", { userPrompt, userId, sessionId, contextChunkIds })
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL || "https://your-backend-search-url/chat"
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_SEARCH_URL || "https://backendsearch-production.up.railway.app/api/chat"
     const body: any = {
       user_prompt: userPrompt,
       user_id: userId,
