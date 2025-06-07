@@ -223,6 +223,21 @@ export const useChatHandler = () => {
       const newAbortController = new AbortController()
       setAbortController(newAbortController)
 
+      // Move modelData declaration to the top so it is available for all branches
+      let modelData = [
+        ...models.map((model: any) => ({
+          modelId: model.model_id as LLMID,
+          modelName: model.name,
+          provider: "custom" as ModelProvider,
+          hostedId: model.id,
+          platformLink: "",
+          imageInput: false
+        })),
+        ...LLM_LIST,
+        ...availableLocalModels,
+        ...availableOpenRouterModels
+      ].find((llm: any) => llm.modelId === chatSettings?.model)
+
       // INTENT DETECTION: Use LLM to classify the user's intent
       const intent = await detectIntent(messageContent)
       console.debug("[intent] classified as:", intent)
@@ -289,21 +304,6 @@ export const useChatHandler = () => {
 
       // Move b64Images declaration above its first use
       const b64Images = newMessageImages.map((image: any) => image.base64)
-
-      // Move temp message creation and chat pipeline after all retrieval logic
-      let modelData = [
-        ...models.map((model: any) => ({
-          modelId: model.model_id as LLMID,
-          modelName: model.name,
-          provider: "custom" as ModelProvider,
-          hostedId: model.id,
-          platformLink: "",
-          imageInput: false
-        })),
-        ...LLM_LIST,
-        ...availableLocalModels,
-        ...availableOpenRouterModels
-      ].find((llm: any) => llm.modelId === chatSettings?.model)
 
       let payload: ChatPayload = {
         chatSettings: chatSettings!,
