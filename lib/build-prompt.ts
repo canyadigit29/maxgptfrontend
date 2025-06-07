@@ -27,6 +27,9 @@ const buildBasePrompt = (
 
   fullPrompt += `User Instructions:\n${prompt}`
 
+  // Add fallback instruction for follow-up Q&A
+  fullPrompt += `\n\nIf you cannot answer the user's question using only the provided search results, respond exactly with: \\"I don't know. Would you like me to run a new search for: '<user's question>'?\\" and wait for confirmation.`
+
   return fullPrompt
 }
 

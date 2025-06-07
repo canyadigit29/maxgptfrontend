@@ -88,6 +88,14 @@ export const Message: FC<MessageProps> = ({
   const [pdfHighlightText, setPdfHighlightText] = useState<string | undefined>(undefined)
   const [pdfHighlightTexts, setPdfHighlightTexts] = useState<string[]>([]) // Add state for pdfHighlightTexts
 
+  // Fallback phrase detection
+  const fallbackMatch =
+    message.role === "assistant" &&
+    typeof message.content === "string" &&
+    message.content.match(/I don't know\. Would you like me to run a new search for: '(.+)'\?/)
+  const fallbackQuery = fallbackMatch ? fallbackMatch[1] : null
+  const [isConfirming, setIsConfirming] = useState(false)
+
   const handleCopy = () => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(message.content)
@@ -124,6 +132,13 @@ export const Message: FC<MessageProps> = ({
 
   const handleStartEdit = () => {
     onStartEdit(message)
+  }
+
+  const handleConfirmNewSearch = async () => {
+    if (!fallbackQuery) return;
+    setIsConfirming(true)
+    await handleSendMessage(fallbackQuery, chatMessages, false)
+    setIsConfirming(false)
   }
 
   useEffect(() => {
@@ -385,7 +400,7 @@ export const Message: FC<MessageProps> = ({
                           <FileIcon type={file.type} />
                         </div>
                         <div
-                          className="cursor-pointer underline text-blue-600 truncate hover:opacity-50"
+                          className="cursor-pointer truncate text-blue-600 underline hover:opacity-50"
                           onClick={() => {
                             if (file.type === "pdf" || file.name?.toLowerCase().endsWith(".pdf")) {
                               handlePdfClick(file);
@@ -469,6 +484,16 @@ export const Message: FC<MessageProps> = ({
 
             <Button size="sm" variant="outline" onClick={onCancelEdit}>
               Cancel
+            </Button>
+          </div>
+        )}
+
+        {/* Fallback confirmation UI */}
+        {fallbackQuery && (
+          <div className="mt-4 flex items-center space-x-2">
+            <span>Run a new search for: <b>{fallbackQuery}</b>?</span>
+            <Button size="sm" onClick={handleConfirmNewSearch} disabled={isConfirming}>
+              {isConfirming ? "Searching..." : "Yes, search"}
             </Button>
           </div>
         )}
