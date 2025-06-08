@@ -21,66 +21,54 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
     window.open(link, "_blank")
   }
 
-  // Drag handler for file drag-and-drop
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-    e.dataTransfer.setData("application/x-file-id", file.id)
-    e.dataTransfer.setData("text/plain", file.id)
-  }
-
   return (
-    <div
-      draggable
-      onDragStart={handleDragStart}
-      style={{ cursor: 'grab' }}
-    >
-      <SidebarItem
-        item={file}
-        isTyping={isTyping}
-        contentType="files"
-        icon={<FileIcon type={file.type} size={30} />}
-        updateState={{ name, description }}
-        renderInputs={() => (
-          <>
-            <div
-              className="cursor-pointer underline hover:opacity-50"
-              onClick={getLinkAndView}
-            >
-              View {file.name}
-            </div>
+    <SidebarItem
+      item={file}
+      isTyping={isTyping}
+      contentType="files"
+      icon={<FileIcon type={file.type} size={30} />}
+      updateState={{ name, description }}
+      renderInputs={() => (
+        <>
+          <div
+            className="cursor-pointer underline hover:opacity-50"
+            onClick={getLinkAndView}
+          >
+            View {file.name}
+          </div>
 
-            <div className="flex flex-col justify-between">
-              <div>{file.type}</div>
+          <div className="flex flex-col justify-between">
+            <div>{file.type}</div>
 
-              <div>{formatFileSize(file.size)}</div>
+            <div>{formatFileSize(file.size)}</div>
 
-              <div>{file.tokens.toLocaleString()} tokens</div>
-            </div>
+            <div>{file.tokens.toLocaleString()} tokens</div>
+          </div>
 
-            <div className="space-y-1">
-              <Label>Name</Label>
+          <div className="space-y-1">
+            <Label>Name</Label>
 
-              <Input
-                placeholder="File name..."
-                value={name}
-                onChange={e => setName(e.target.value)}
-                maxLength={FILE_NAME_MAX}
-              />
-            </div>
+            <Input
+              placeholder="File name..."
+              value={name}
+              onChange={e => setName(e.target.value)}
+              maxLength={FILE_NAME_MAX}
+            />
+          </div>
 
-            <div className="space-y-1">
-              <Label>Description</Label>
+          <div className="space-y-1">
+            <Label>Description</Label>
 
-              <Input
-                placeholder="File description..."
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                maxLength={FILE_DESCRIPTION_MAX}
-              />
-            </div>
-          </>
-        )}
-      />
-    </div>
+            <Input
+              placeholder="File description..."
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              maxLength={FILE_DESCRIPTION_MAX}
+            />
+          </div>
+        </>
+      )}
+    />
   )
 }
 
