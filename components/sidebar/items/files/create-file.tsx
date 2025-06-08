@@ -133,7 +133,7 @@ export const CreateFile: FC<CreateFileProps> = ({ isOpen, onOpenChange }) => {
                 ))}
               </ul>
               <button
-                className="mt-2 rounded px-4 py-2 bg-blue-600 text-white disabled:opacity-50"
+                className="mt-2 rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
                 onClick={handleUploadAll}
                 disabled={uploading}
               >

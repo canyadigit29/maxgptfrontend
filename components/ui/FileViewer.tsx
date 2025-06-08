@@ -33,9 +33,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({ isOpen, onClose, onFileS
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold">Select a File</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-black">✕</button>
         </div>
@@ -43,10 +43,10 @@ export const FileViewer: React.FC<FileViewerProps> = ({ isOpen, onClose, onFileS
         {error && <div className="text-red-500">{error}</div>}
         <ul>
           {files.map((file) => (
-            <li key={file.id || file.name} className="py-2 border-b flex justify-between items-center">
+            <li key={file.id || file.name} className="flex items-center justify-between border-b py-2">
               <span>{file.name}</span>
               <button
-                className="ml-4 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="ml-4 rounded bg-blue-600 px-2 py-1 text-white hover:bg-blue-700"
                 onClick={() => onFileSelect({ name: file.name, path: file.name })}
               >
                 Select

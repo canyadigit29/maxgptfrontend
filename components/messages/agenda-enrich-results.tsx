@@ -70,11 +70,11 @@ export const AgendaEnrichResults: React.FC<AgendaEnrichResultsProps> = ({ result
         const fileCount = Object.keys(grouped).length
         const chunkCount = topic.retrieved_chunks.length
         return (
-          <div key={i} className="border rounded-xl bg-secondary p-4">
-            <div className="font-bold mb-2 text-primary text-lg">{topic.title}</div>
+          <div key={i} className="bg-secondary rounded-xl border p-4">
+            <div className="text-primary mb-2 text-lg font-bold">{topic.title}</div>
             <div className="mb-2 whitespace-pre-wrap">{topic.summary}</div>
             {chunkCount > 0 && (
-              <div className="border-t pt-4 mt-4 font-bold">
+              <div className="mt-4 border-t pt-4 font-bold">
                 {!openSources[i] ? (
                   <div
                     className="flex cursor-pointer items-center text-lg hover:opacity-50"
@@ -100,7 +100,7 @@ export const AgendaEnrichResults: React.FC<AgendaEnrichResultsProps> = ({ result
                               <FileIcon type={file.type || ""} size={24} />
                             </div>
                             <div
-                              className="cursor-pointer underline text-blue-600 truncate hover:opacity-50"
+                              className="cursor-pointer truncate text-blue-600 underline hover:opacity-50"
                               onClick={() => handleFileClick(file, chunks.map((c: any) => c.content))}
                             >
                               {file.name}

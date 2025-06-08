@@ -38,7 +38,7 @@ export const PdfViewerDialog: FC<PdfViewerDialogProps> = ({ file, highlightTexts
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="flex items-center justify-center outline-none border-transparent bg-transparent min-w-[900px] min-h-[80vh]">
+      <DialogContent className="flex min-h-[80vh] min-w-[900px] items-center justify-center border-transparent bg-transparent outline-none">
         {loading && <div>Loading PDF...</div>}
         {error && <div className="text-red-500">{error}</div>}
         {signedUrl && !loading && !error && (
