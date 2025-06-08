@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { FC } from "react"
 
 interface BrandProps {
@@ -8,10 +9,15 @@ interface BrandProps {
 
 export const Brand: FC<BrandProps> = ({ theme = "dark" }) => {
   return (
-    <div className="flex flex-col items-center">
+    <Link
+      className="flex cursor-pointer flex-col items-center hover:opacity-50"
+      href="https://www.maxgpt.com" // Update this URL as needed
+      target="_blank"
+      rel="noopener noreferrer"
+    >
       <div className="mb-2">
         <img
-          src={theme === "dark" ? "/NEW_DARK_BRAND_LOGO.png" : "/NEW_LIGHT_BRAND_LOGO.png"}
+          src={theme === "dark" ? "/DARK_BRAND_LOGO.png" : "/LIGHT_BRAND_LOGO.png"}
           alt="MaxGPT Logo"
           width={56}
           height={58}
@@ -19,6 +25,6 @@ export const Brand: FC<BrandProps> = ({ theme = "dark" }) => {
         />
       </div>
       <div className="text-4xl font-bold tracking-wide">MaxGPT</div>
-    </div>
+    </Link>
   )
 }
