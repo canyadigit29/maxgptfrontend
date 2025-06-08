@@ -253,21 +253,26 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
 
   const handleDrop = async (event: React.DragEvent) => {
     event.preventDefault()
+    console.log('Drop event fired', event)
     const fileId = event.dataTransfer.getData('application/x-file-id')
+    console.log('application/x-file-id:', fileId)
     if (fileId) {
       try {
         // Fetch file metadata
         const fileRecord = await getFileById(fileId)
+        console.log('Fetched fileRecord:', fileRecord)
         // Only support PDF or DOCX
         if (fileRecord.type === 'pdf' || fileRecord.type === 'docx' || fileRecord.name.endsWith('.pdf') || fileRecord.name.endsWith('.docx')) {
           // Get signed URL
           const fileUrl = await getFileFromStorage(fileRecord.file_path)
+          console.log('File URL:', fileUrl)
           // Download the file as blob
           const response = await fetch(fileUrl)
           const blob = await response.blob()
           // Create a File object
           const file = new File([blob], fileRecord.name, { type: blob.type })
           // Trigger enrichment prompt
+          console.log('Triggering enrichment for file:', file)
           handleFileSelectForEnrichment(file)
           return
         } else {
@@ -276,6 +281,7 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
         }
       } catch (err) {
         toast.error('Failed to fetch file for enrichment.')
+        console.error('Error in handleDrop:', err)
         return
       }
     }
