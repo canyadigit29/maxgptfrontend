@@ -353,57 +353,67 @@ export const Message: FC<MessageProps> = ({
 
         {fileItems.length > 0 && (
           <div className="border-primary mt-6 border-t pt-4 font-bold">
-            <div className="mt-3 space-y-4">
-              {Object.values(fileSummary).map((file, index) => (
-                <div key={index}>
-                  <div className="flex items-center space-x-2">
-                    <div>
-                      <FileIcon type={file.type} />
-                    </div>
-                    <div
-                      className="truncate underline text-blue-600 cursor-pointer hover:opacity-50"
-                      onClick={() => {
-                        if (file.type === "pdf" || file.name?.toLowerCase().endsWith(".pdf")) {
-                          handlePdfClick(file);
-                        } else {
-                          setSelectedFileForPreview(file)
-                          const chunks = fileItems
-                            .filter((fileItem: any) => fileItem.file_id === file.id)
-                            .map((fileItem: any) => fileItem.content)
-                          setHighlightedChunks(chunks)
-                          setShowFilePreview(true)
-                        }
-                      }}
-                    >
-                      {file.name}
-                    </div>
-                  </div>
-
-                  {fileItems
-                    .filter(fileItem => {
-                      const parentFile = files.find(
-                        parentFile => parentFile.id === fileItem.file_id
-                      )
-                      return parentFile?.id === file.id
-                    })
-                    .map((fileItem, index) => (
+            <div
+              className="flex cursor-pointer items-center text-lg hover:opacity-50"
+              onClick={() => setShowSources(v => !v)}
+            >
+              {fileItems.length} {fileItems.length > 1 ? "Sources" : "Source"} from {Object.keys(fileSummary).length} {Object.keys(fileSummary).length > 1 ? "Files" : "File"}
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1">
+                <path d="M9 6c0 -.852 .986 -1.297 1.623 -.783l.084 .076l6 6a1 1 0 0 1 .083 1.32l-.083 .094l-6 6l-.094 .083l-.077 .054l-.096 .054l-.036 .017l-.067 .027l-.108 .032l-.053 .01l-.06 .01l-.057 .004l-.059 .002l-.059 -.002l-.058 -.005l-.06 -.009l-.052 -.01l-.108 -.032l-.067 -.027l-.132 -.07l-.09 -.065l-.081 -.073l-.083 -.094l-.054 -.077l-.054 -.096l-.017 -.036l-.027 -.067l-.032 -.108l-.01 -.053l-.01 -.06l-.004 -.057l-.002 -12.059z" fill="currentColor" strokeWidth="0"></path>
+              </svg>
+            </div>
+            {showSources && (
+              <div className="mt-3 space-y-4">
+                {Object.values(fileSummary).map((file, index) => (
+                  <div key={index}>
+                    <div className="flex items-center space-x-2">
+                      <div>
+                        <FileIcon type={file.type} />
+                      </div>
                       <div
-                        key={index}
-                        className="ml-8 mt-1.5 flex cursor-pointer items-center space-x-2 hover:opacity-50"
+                        className="truncate underline text-blue-600 cursor-pointer hover:opacity-50"
                         onClick={() => {
-                          setSelectedFileItem(fileItem)
-                          setShowFileItemPreview(true)
+                          if (file.type === "pdf" || file.name?.toLowerCase().endsWith(".pdf")) {
+                            handlePdfClick(file);
+                          } else {
+                            setSelectedFileForPreview(file)
+                            const chunks = fileItems
+                              .filter((fileItem: any) => fileItem.file_id === file.id)
+                              .map((fileItem: any) => fileItem.content)
+                            setHighlightedChunks(chunks)
+                            setShowFilePreview(true)
+                          }
                         }}
                       >
-                        <div className="text-sm font-normal">
-                          <span className="mr-1 text-lg font-bold">-</span>{" "}
-                          {fileItem.content.substring(0, 200)}...
-                        </div>
+                        {file.name}
                       </div>
-                    ))}
-                </div>
-              ))}
-            </div>
+                    </div>
+                    {fileItems
+                      .filter(fileItem => {
+                        const parentFile = files.find(
+                          parentFile => parentFile.id === fileItem.file_id
+                        )
+                        return parentFile?.id === file.id
+                      })
+                      .map((fileItem, index) => (
+                        <div
+                          key={index}
+                          className="ml-8 mt-1.5 flex cursor-pointer items-center space-x-2 hover:opacity-50"
+                          onClick={() => {
+                            setSelectedFileItem(fileItem)
+                            setShowFileItemPreview(true)
+                          }}
+                        >
+                          <div className="text-sm font-normal">
+                            <span className="mr-1 text-lg font-bold">-</span>{" "}
+                            {fileItem.content.substring(0, 200)}...
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
