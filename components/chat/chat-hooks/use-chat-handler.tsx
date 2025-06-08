@@ -273,7 +273,9 @@ export const useChatHandler = () => {
         setSearchSummary?.(backendSearchResults.summary)
         setLastSearchSummary(backendSearchResults.summary)
         setLastSearchChunks(backendSearchResults.retrieved_chunks || [])
+        console.log('[DEBUG] backendSearchResults.retrieved_chunks.length:', backendSearchResults.retrieved_chunks?.length)
         const retrievedFileItems = backendSearchResults.retrieved_chunks.slice(0, 500)
+        console.log('[DEBUG] retrievedFileItems.length:', retrievedFileItems.length)
         const generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
 
         // Always create or update chat and messages, so context is preserved
