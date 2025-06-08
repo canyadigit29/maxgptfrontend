@@ -1,1 +1,0 @@
-This file was removed because the AgendaEnrichResults component is no longer used anywhere in the codebase. All references have been removed and the agenda enrichment results now fall back to markdown rendering.
