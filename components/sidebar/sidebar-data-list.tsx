@@ -186,6 +186,9 @@ export const SidebarDataList: FC<SidebarDataListProps> = ({
   }
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, id: string) => {
+    if (contentType === "files") {
+      e.dataTransfer.setData("application/x-file-id", id)
+    }
     e.dataTransfer.setData("text/plain", id)
   }
 

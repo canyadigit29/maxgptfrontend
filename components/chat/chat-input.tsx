@@ -20,6 +20,8 @@ import { useChatHandler } from "./chat-hooks/use-chat-handler"
 import { useChatHistoryHandler } from "./chat-hooks/use-chat-history"
 import { usePromptAndCommand } from "./chat-hooks/use-prompt-and-command"
 import { useSelectFileHandler } from "./chat-hooks/use-select-file-handler"
+import { getFileById } from "@/db/files"
+import { getFileFromStorage } from "@/db/storage/files"
 
 interface ChatInputProps {}
 
@@ -249,6 +251,57 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
     handleSendMessage(messageContent, chatMessages, isRegeneration)
   }
 
+  const handleDrop = async (event: React.DragEvent) => {
+    event.preventDefault()
+    const fileId = event.dataTransfer.getData('application/x-file-id')
+    if (fileId) {
+      try {
+        // Fetch file metadata
+        const fileRecord = await getFileById(fileId)
+        // Only support PDF or DOCX
+        if (fileRecord.type === 'pdf' || fileRecord.type === 'docx' || fileRecord.name.endsWith('.pdf') || fileRecord.name.endsWith('.docx')) {
+          // Get signed URL
+          const fileUrl = await getFileFromStorage(fileRecord.file_path)
+          // Download the file as blob
+          const response = await fetch(fileUrl)
+          const blob = await response.blob()
+          // Create a File object
+          const file = new File([blob], fileRecord.name, { type: blob.type })
+          // Trigger enrichment prompt
+          handleFileSelectForEnrichment(file)
+          return
+        } else {
+          toast.error('Only PDF or DOCX agenda files are supported for enrichment.')
+          return
+        }
+      } catch (err) {
+        toast.error('Failed to fetch file for enrichment.')
+        return
+      }
+    }
+    // fallback to existing drop logic if not a sidebar file
+    const imagesAllowed = LLM_LIST.find(
+      llm => llm.modelId === chatSettings?.model
+    )?.imageInput
+
+    const items = event.dataTransfer.items
+    for (const item of items) {
+      if (item.kind === "file") {
+        const file = item.getAsFile()
+        if (!file) continue
+        if (file.type.indexOf("image") === 0) {
+          if (!imagesAllowed) {
+            toast.error(
+              `Images are not supported for this model. Use models like GPT-4 Vision instead.`
+            )
+            return
+          }
+        }
+        handleSelectDeviceFile(file)
+      }
+    }
+  }
+
   return (
     <>
       <div className="flex flex-col flex-wrap justify-center gap-2">
@@ -298,7 +351,7 @@ export const ChatInput: FC<ChatInputProps> = ({}) => {
         )}
       </div>
 
-      <div className="border-input relative mt-3 flex min-h-[60px] w-full items-center justify-center rounded-xl border-2">
+      <div className="border-input relative mt-3 flex min-h-[60px] w-full items-center justify-center rounded-xl border-2" onDrop={handleDrop}>
         <div className="absolute bottom-[76px] left-0 max-h-[300px] w-full overflow-auto rounded-xl dark:border-none">
           <ChatCommandInput />
         </div>
