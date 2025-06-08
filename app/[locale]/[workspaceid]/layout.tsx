@@ -29,8 +29,7 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
 
   const params = useParams()
   const searchParams = useSearchParams()
-  // Defensive: handle possible null for params
-  const workspaceId = params?.workspaceid as string
+  const workspaceId = params.workspaceid as string
 
   const {
     setChatSettings,
