@@ -3,6 +3,7 @@ import { ChatbotUIContext } from "@/context/context"
 import { getFileFromStorage } from "@/db/storage/files"
 import { FileIcon } from "@/components/ui/file-icon"
 import { FilePreview } from "@/components/ui/file-preview"
+import { useChatHandler } from "@/components/chat/chat-hooks/use-chat-handler"
 
 interface AgendaEnrichResultsProps {
   results: Array<{
@@ -14,6 +15,7 @@ interface AgendaEnrichResultsProps {
 
 export const AgendaEnrichResults: React.FC<AgendaEnrichResultsProps> = ({ results }) => {
   const { files } = useContext(ChatbotUIContext)
+  const { FileViewerComponent, openFileViewerForLLM } = useChatHandler();
   const [openSources, setOpenSources] = useState<{ [key: number]: boolean }>({})
   const [showFilePreview, setShowFilePreview] = useState(false)
   const [selectedFile, setSelectedFile] = useState<any>(null)
@@ -61,6 +63,8 @@ export const AgendaEnrichResults: React.FC<AgendaEnrichResultsProps> = ({ result
 
   return (
     <div className="space-y-6">
+      {/* Render the file viewer modal if needed */}
+      {FileViewerComponent}
       {results.map((topic, i) => {
         const grouped = groupChunksByFile(topic.retrieved_chunks)
         const fileCount = Object.keys(grouped).length
