@@ -4,8 +4,7 @@ import OpenAI from "openai";
 // Hardcoded list of available features for intent detection
 const AVAILABLE_FEATURES = [
   "general chat",
-  "semantic search",
-  "file selection"
+  "semantic search"
 ];
 
 const SYSTEM_PROMPT = `You are an intent classifier for a chat assistant. Classify the user's message as one of the following options: ${AVAILABLE_FEATURES.join(", ")}. Respond with only the label.`;
