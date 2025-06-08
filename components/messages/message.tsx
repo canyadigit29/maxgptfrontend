@@ -88,6 +88,8 @@ export const Message: FC<MessageProps> = ({
   const [pdfHighlightText, setPdfHighlightText] = useState<string | undefined>(undefined)
   const [pdfHighlightTexts, setPdfHighlightTexts] = useState<string[]>([]) // Add state for pdfHighlightTexts
 
+  const [showSources, setShowSources] = useState(false); // Add missing useState for showSources toggle
+
   const handleCopy = () => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(message.content)
