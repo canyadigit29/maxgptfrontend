@@ -106,9 +106,16 @@ export const Dashboard: FC<DashboardProps> = ({ children }) => {
         onDragLeave={handleDragLeave}
       >
         {isDragging ? (
-          <div className="flex h-full items-center justify-center bg-black/50 text-2xl text-white">
-            drop file here
-          </div>
+          <>
+            {/* Overlay only covers the main chat area, not the input */}
+            <div className="absolute inset-x-0 top-0" style={{ bottom: 100, zIndex: 50, pointerEvents: 'auto' }}>
+              <div className="flex h-full items-center justify-center bg-black/50 text-2xl text-white" style={{ minHeight: '200px' }}>
+                drop file here
+              </div>
+            </div>
+            {/* Render children as usual so chat input is always accessible */}
+            {children}
+          </>
         ) : (
           children
         )}
