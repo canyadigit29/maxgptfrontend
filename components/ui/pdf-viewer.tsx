@@ -130,7 +130,7 @@ export const PdfViewer = ({ fileUrl, highlightTexts }: PdfViewerProps) => {
         </div>
       )}
       {highlightLocations.length > 0 && (
-        <div className="mt-2 flex items-center gap-2">
+        <div className="flex gap-2 mt-2 items-center">
           <button
             onClick={() => goToHighlight((currentHighlightIdx - 1 + highlightLocations.length) % highlightLocations.length)}
             disabled={highlightLocations.length === 0}
@@ -148,7 +148,7 @@ export const PdfViewer = ({ fileUrl, highlightTexts }: PdfViewerProps) => {
           </button>
         </div>
       )}
-      <div className="mt-2 flex gap-2">
+      <div className="flex gap-2 mt-2">
         <button
           onClick={() => setPageNumber(p => Math.max(1, p - 1))}
           disabled={pageNumber <= 1}

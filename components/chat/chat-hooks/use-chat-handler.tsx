@@ -23,7 +23,6 @@ import {
   validateChatSettings
 } from "../chat-helpers"
 import { toast } from "sonner"
-import { FileViewer } from "@/components/ui/FileViewer"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -226,15 +225,6 @@ export const useChatHandler = () => {
     }
   }
 
-  const [fileViewerOpen, setFileViewerOpen] = useState(false)
-  const [onFileSelectCallback, setOnFileSelectCallback] = useState<null | ((file: { name: string; path: string }) => void)>(null)
-
-  // Add a handler to open the file viewer and process the selected file
-  const openFileViewerForLLM = (onFileSelect: (file: { name: string; path: string }) => void) => {
-    setOnFileSelectCallback(() => onFileSelect)
-    setFileViewerOpen(true)
-  }
-
   const handleSendMessage = async (
     messageContent: string,
     chatMessages: ChatMessage[],
@@ -334,26 +324,6 @@ export const useChatHandler = () => {
         setFirstTokenReceived(false)
         console.debug("[chat] handleSendMessage completed")
         return
-      } else if (intent === "file selection") {
-        openFileViewerForLLM(async (file) => {
-          // Download file content from API
-          const resp = await fetch("/api/storage/get-file-content", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ path: file.path })
-          });
-          const data = await resp.json();
-          if (data.content) {
-            // Send file content as a new message to the LLM
-            // You can customize this: here we append the file content to the chat
-            await handleSendMessage(
-              `Read the following file: ${file.name}\n\n${data.content.substring(0, 10000)}`,
-              chatMessages,
-              false
-            );
-          }
-        });
-        return;
       }
 
       // --- FOLLOW-UP DETECTION LOGIC ---
@@ -649,19 +619,6 @@ export const useChatHandler = () => {
     handleSendMessage,
     handleFocusChatInput,
     handleStopMessage,
-    handleSendEdit,
-    FileViewerComponent: (
-      <FileViewer
-        isOpen={fileViewerOpen}
-        onClose={() => setFileViewerOpen(false)}
-        onFileSelect={async (file) => {
-          setFileViewerOpen(false)
-          if (onFileSelectCallback) {
-            onFileSelectCallback(file)
-          }
-        }}
-      />
-    ),
-    openFileViewerForLLM
+    handleSendEdit
   }
 }

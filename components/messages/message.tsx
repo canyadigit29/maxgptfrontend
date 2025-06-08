@@ -361,7 +361,7 @@ export const Message: FC<MessageProps> = ({
                       <FileIcon type={file.type} />
                     </div>
                     <div
-                      className="cursor-pointer truncate text-blue-600 underline hover:opacity-50"
+                      className="truncate underline text-blue-600 cursor-pointer hover:opacity-50"
                       onClick={() => {
                         if (file.type === "pdf" || file.name?.toLowerCase().endsWith(".pdf")) {
                           handlePdfClick(file);
