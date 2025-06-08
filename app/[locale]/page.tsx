@@ -12,7 +12,7 @@ export default function HomePage() {
     <div className="flex size-full flex-col items-center justify-center">
       <div>
         <Image
-          src={theme === "dark" ? "/DARK_BRAND_LOGO.png" : "/LIGHT_BRAND_LOGO.png"}
+          src={theme === "dark" ? "/NEW_DARK_BRAND_LOGO.png" : "/NEW_LIGHT_BRAND_LOGO.png"}
           alt="MaxGPT Logo"
           width={120}
           height={120}
