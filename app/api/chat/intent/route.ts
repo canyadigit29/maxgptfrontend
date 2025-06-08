@@ -4,25 +4,31 @@ import OpenAI from "openai";
 // Hardcoded list of available features for intent detection
 const AVAILABLE_FEATURES = [
   "general chat",
-  "semantic search"
+  "semantic search",
+  "follow-up"
 ];
 
 const SYSTEM_PROMPT = `You are an intent classifier for a chat assistant. Classify the user's message as one of the following options: ${AVAILABLE_FEATURES.join(", ")}. Respond with only the label.`;
 
 export async function POST(request: NextRequest) {
-  const { message } = await request.json();
+  const { message, previousSummary } = await request.json();
 
   if (!message) {
     return NextResponse.json({ error: "No message provided." }, { status: 400 });
   }
 
-  // You may want to use a different model or API key here
+  // Compose a system prompt that includes previous summary if present
+  let systemPrompt = SYSTEM_PROMPT;
+  if (previousSummary) {
+    systemPrompt = `You are an intent classifier for a chat assistant. Given the previous search summary and the user's new message, classify the user's message as one of the following options: ${AVAILABLE_FEATURES.join(", ")}. Respond with only the label.\n\nPrevious search summary: ${previousSummary}\nUser message: ${message}`;
+  }
+
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   const completion = await openai.chat.completions.create({
     model: "gpt-3.5-turbo", // or your preferred model
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: systemPrompt },
       { role: "user", content: message }
     ],
     max_tokens: 10,
