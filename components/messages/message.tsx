@@ -25,7 +25,6 @@ import { MessageActions } from "./message-actions"
 import { MessageMarkdown } from "./message-markdown"
 import { PdfViewerDialog } from "../ui/pdf-viewer-dialog"
 import { getFileFromStorage } from "@/db/storage/files"
-import { AgendaEnrichResults } from "./agenda-enrich-results"
 
 const ICON_SIZE = 32
 
@@ -341,7 +340,8 @@ export const Message: FC<MessageProps> = ({
                   parsed.topics[0].summary &&
                   parsed.topics[0].retrieved_chunks
                 ) {
-                  return <AgendaEnrichResults results={parsed.topics} />
+                  // Instead of rendering AgendaEnrichResults, just render markdown fallback
+                  return <MessageMarkdown content={message.content} />
                 }
               } catch (e) {
                 // Not JSON, fallback to markdown
