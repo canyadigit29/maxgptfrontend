@@ -1,7 +1,8 @@
 import React, { useContext, useState } from "react"
 import { ChatbotUIContext } from "@/context/context"
-import { FilePreview } from "@/components/ui/file-preview"
+import { getFileFromStorage } from "@/db/storage/files"
 import { FileIcon } from "@/components/ui/file-icon"
+import { FilePreview } from "@/components/ui/file-preview"
 
 interface AgendaEnrichResultsProps {
   results: Array<{
@@ -65,8 +66,8 @@ export const AgendaEnrichResults: React.FC<AgendaEnrichResultsProps> = ({ result
         const fileCount = Object.keys(grouped).length
         const chunkCount = topic.retrieved_chunks.length
         return (
-          <div key={i} className="rounded-xl border bg-secondary p-4">
-            <div className="mb-2 text-lg font-bold text-primary">{topic.title}</div>
+          <div key={i} className="border rounded-xl bg-secondary p-4">
+            <div className="font-bold mb-2 text-primary text-lg">{topic.title}</div>
             <div className="mb-2 whitespace-pre-wrap">{topic.summary}</div>
             {chunkCount > 0 && (
               <div className="border-t pt-4 mt-4 font-bold">
@@ -95,7 +96,7 @@ export const AgendaEnrichResults: React.FC<AgendaEnrichResultsProps> = ({ result
                               <FileIcon type={file.type || ""} size={24} />
                             </div>
                             <div
-                              className="truncate underline text-blue-600 hover:opacity-50 cursor-pointer"
+                              className="cursor-pointer underline text-blue-600 truncate hover:opacity-50"
                               onClick={() => handleFileClick(file, chunks.map((c: any) => c.content))}
                             >
                               {file.name}
