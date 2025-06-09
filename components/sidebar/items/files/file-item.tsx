@@ -92,14 +92,29 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
         return;
       }
       for (const item of selected) {
+        // Extract the most specific part of the checklist item for searching
+        let searchTerm = item.text;
+        // Try to get the part after the last period, colon, or letter/number prefix
+        const match = searchTerm.match(/([A-Za-z0-9\- ]+)(?=[.:]?\s*$)/);
+        if (match && match[1]) {
+          searchTerm = match[1].trim();
+        } else {
+          // fallback: after last colon or period
+          const lastColon = item.text.lastIndexOf(":");
+          const lastPeriod = item.text.lastIndexOf(".");
+          const lastSep = Math.max(lastColon, lastPeriod);
+          if (lastSep !== -1) {
+            searchTerm = item.text.substring(lastSep + 1).trim();
+          }
+        }
         // Clean the topic header for chat display
-        const cleanedTopic = cleanHeader(item.label).toUpperCase() + ": " + item.text;
+        const cleanedTopic = cleanHeader(item.label).toUpperCase() + ": " + searchTerm;
         // Call backend to get item history
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
         const resp = await fetch(`${backendUrl}/api/file_ops/item_history`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic: item.text, user_id: profile?.user_id || "" })
+          body: JSON.stringify({ topic: searchTerm, user_id: profile?.user_id || "" })
         });
         if (!resp.ok) {
           throw new Error("Failed to fetch item history");
