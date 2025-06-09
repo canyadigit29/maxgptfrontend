@@ -26,6 +26,7 @@ import { MessageMarkdown } from "./message-markdown"
 import { PdfViewerDialog } from "../ui/pdf-viewer-dialog"
 import { getFileFromStorage } from "@/db/storage/files"
 import { AgendaEnrichResults } from "./agenda-enrich-results"
+import { ItemHistoryResults } from "./item-history-results"
 
 const ICON_SIZE = 32
 
@@ -345,6 +346,10 @@ export const Message: FC<MessageProps> = ({
                 ) {
                   return <AgendaEnrichResults results={parsed.topics} />
                 }
+                // Render item history if type matches
+                if (parsed && parsed.type === "item_history" && parsed.history) {
+                  return <ItemHistoryResults topic={parsed.topic} history={parsed.history} />
+                }
               } catch (e) {
                 // Not JSON, fallback to markdown
               }
@@ -373,7 +378,7 @@ export const Message: FC<MessageProps> = ({
                         <FileIcon type={file.type} />
                       </div>
                       <div
-                        className="truncate underline text-blue-600 cursor-pointer hover:opacity-50"
+                        className="underline text-blue-600 truncate cursor-pointer hover:opacity-50"
                         onClick={() => {
                           if (file.type === "pdf" || file.name?.toLowerCase().endsWith(".pdf")) {
                             handlePdfClick(file);

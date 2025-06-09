@@ -92,8 +92,37 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
         return;
       }
       for (const item of selected) {
-        // Send each checklist item as a chat message, triggering the normal semantic search/chat flow
-        await handleSendMessage(item.text, chatMessages, false);
+        // Call backend to get item history
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        const resp = await fetch(`${backendUrl}/api/file_ops/item_history`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic: item.text, user_id: profile?.user_id || "" })
+        });
+        if (!resp.ok) {
+          throw new Error("Failed to fetch item history");
+        }
+        const data = await resp.json();
+        // Post the result as a chat message with a custom type for rendering
+        setChatMessages(prev => [
+          ...prev,
+          {
+            message: {
+              id: `item-history-${Date.now()}-${Math.random()}`,
+              role: "assistant",
+              content: JSON.stringify({ type: "item_history", topic: item.text, history: data.history }),
+              created_at: new Date().toISOString(),
+              sequence_number: prev.length,
+              chat_id: "",
+              assistant_id: null,
+              user_id: profile?.user_id || "",
+              model: "item-history",
+              image_paths: [],
+              updated_at: ""
+            },
+            fileItems: []
+          }
+        ]);
       }
     } catch (e: any) {
       setSearchError(e.message || "Unknown error during search.");
@@ -175,7 +204,7 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
                     />
                     <div>
                       <div className="font-semibold">{item.label}</div>
-                      <div className="text-xs text-gray-400 truncate max-w-[400px]">{item.text}</div>
+                      <div className="text-xs text-gray-400 max-w-[400px] truncate">{item.text}</div>
                     </div>
                   </li>
                 ))}
