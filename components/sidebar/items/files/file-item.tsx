@@ -22,6 +22,9 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
   const [checklist, setChecklist] = useState<Array<{ label: string; text: string }>>([])
   const [selectedItems, setSelectedItems] = useState<number[]>([])
   const [checklistError, setChecklistError] = useState<string | null>(null)
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
 
   const getLinkAndView = async () => {
     const link = await getFileFromStorage(file.file_path)
@@ -73,6 +76,41 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
       prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
     )
     // TODO: Trigger semantic search for selected items here
+  }
+
+  const handleSearchSelected = async () => {
+    setSearching(true)
+    setSearchError(null)
+    setSearchResults([])
+    try {
+      const selected = checklist.filter((_, idx) => selectedItems.includes(idx))
+      if (selected.length === 0) {
+        setSearchError("Please select at least one item.")
+        setSearching(false)
+        return
+      }
+      // For each selected item, call the backend semantic search endpoint
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"
+      const results: any[] = []
+      for (const item of selected) {
+        const resp = await fetch(`${backendUrl}/api/file_ops/search_docs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: item.text, user_id: profile?.user_id })
+        })
+        if (!resp.ok) {
+          const err = await resp.text()
+          throw new Error(`Search failed: ${err}`)
+        }
+        const data = await resp.json()
+        results.push({ label: item.label, result: data })
+      }
+      setSearchResults(results)
+    } catch (e: any) {
+      setSearchError(e.message || "Unknown error during search.")
+    } finally {
+      setSearching(false)
+    }
   }
 
   return (
@@ -153,6 +191,32 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
                   </li>
                 ))}
               </ul>
+              <Button
+                className="mt-4"
+                variant="secondary"
+                onClick={handleSearchSelected}
+                disabled={searching || selectedItems.length === 0}
+              >
+                {searching ? "Searching..." : "Search Selected"}
+              </Button>
+              {searchError && (
+                <div className="mt-2 text-red-500">{searchError}</div>
+              )}
+              {searchResults.length > 0 && (
+                <div className="mt-4">
+                  <div className="mb-2 font-bold">Search Results:</div>
+                  <ul className="space-y-4">
+                    {searchResults.map((res, idx) => (
+                      <li key={idx}>
+                        <div className="font-semibold">{res.label}</div>
+                        <pre className="bg-zinc-900 text-xs p-2 rounded whitespace-pre-wrap max-w-[600px] overflow-x-auto">
+                          {JSON.stringify(res.result, null, 2)}
+                        </pre>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </>
