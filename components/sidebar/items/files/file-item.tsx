@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label"
 import { FILE_DESCRIPTION_MAX, FILE_NAME_MAX } from "@/db/limits"
 import { getFileFromStorage } from "@/db/storage/files"
 import { Tables } from "@/supabase/types"
-import { FC, useContext, useState } from "react"
+import { FC, useContext, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ChatbotUIContext } from "@/context/context"
 import { SidebarItem } from "../all/sidebar-display-item"
@@ -19,6 +19,9 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
   const [description, setDescription] = useState(file.description)
   const { setChatMessages, chatMessages, profile } = useContext(ChatbotUIContext)
   const [analyzing, setAnalyzing] = useState(false)
+  const [checklist, setChecklist] = useState<Array<{ label: string; text: string }>>([])
+  const [selectedItems, setSelectedItems] = useState<number[]>([])
+  const [checklistError, setChecklistError] = useState<string | null>(null)
 
   const getLinkAndView = async () => {
     const link = await getFileFromStorage(file.file_path)
@@ -27,6 +30,8 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
 
   const handleAnalyzeFile = async () => {
     setAnalyzing(true)
+    setChecklist([])
+    setChecklistError(null)
     try {
       let fileContent = ""
       let fileName = file.name
@@ -44,46 +49,30 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
         const response = await fetch(link)
         fileContent = await response.text()
       }
-      setChatMessages([
-        ...chatMessages,
-        {
-          message: {
-            id: `file-analyze-${file.id}-${Date.now()}`,
-            role: "assistant",
-            content: `File: ${fileName}\n\n${fileContent}`,
-            created_at: new Date().toISOString(),
-            sequence_number: chatMessages.length,
-            chat_id: "",
-            assistant_id: null,
-            user_id: profile?.user_id || "",
-            model: "",
-            image_paths: [],
-            updated_at: ""
-          },
-          fileItems: []
-        },
-        {
-          message: {
-            id: `file-analyze-followup-${file.id}-${Date.now()}`,
-            role: "assistant",
-            content: "Here is the file you're interested in. What would you like to talk about?",
-            created_at: new Date().toISOString(),
-            sequence_number: chatMessages.length + 1,
-            chat_id: "",
-            assistant_id: null,
-            user_id: profile?.user_id || "",
-            model: "",
-            image_paths: [],
-            updated_at: ""
-          },
-          fileItems: []
-        }
-      ])
-    } catch (e) {
-      // Optionally handle error
+      // Call backend checklist endpoint
+      const checklistApi = `${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"}/api/extract_checklist`
+      const checklistResp = await fetch(checklistApi, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: fileContent })
+      })
+      if (!checklistResp.ok) throw new Error("Failed to extract checklist from file")
+      const checklistData = await checklistResp.json()
+      setChecklist(checklistData.checklist)
+      setSelectedItems([])
+    } catch (e: any) {
+      setChecklistError(e.message || "Unknown error")
     } finally {
       setAnalyzing(false)
     }
+  }
+
+  // Handler for checkbox selection
+  const handleChecklistChange = (idx: number) => {
+    setSelectedItems(prev =>
+      prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
+    )
+    // TODO: Trigger semantic search for selected items here
   }
 
   return (
@@ -140,6 +129,32 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
           >
             {analyzing ? "Analyzing..." : "Analyze File"}
           </Button>
+
+          {/* Checklist UI */}
+          {checklistError && (
+            <div className="mt-2 text-red-500">Checklist error: {checklistError}</div>
+          )}
+          {checklist.length > 0 && (
+            <div className="mt-4">
+              <div className="mb-2 font-bold">Checklist (select items to search):</div>
+              <ul className="space-y-2">
+                {checklist.map((item, idx) => (
+                  <li key={idx} className="flex items-start space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedItems.includes(idx)}
+                      onChange={() => handleChecklistChange(idx)}
+                      className="mt-1"
+                    />
+                    <div>
+                      <div className="font-semibold">{item.label}</div>
+                      <div className="max-w-[400px] text-xs text-gray-400 truncate">{item.text}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </>
       )}
     />
