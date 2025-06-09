@@ -4,7 +4,9 @@ import { Label } from "@/components/ui/label"
 import { FILE_DESCRIPTION_MAX, FILE_NAME_MAX } from "@/db/limits"
 import { getFileFromStorage } from "@/db/storage/files"
 import { Tables } from "@/supabase/types"
-import { FC, useState } from "react"
+import { FC, useContext, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { ChatbotUIContext } from "@/context/context"
 import { SidebarItem } from "../all/sidebar-display-item"
 
 interface FileItemProps {
@@ -15,10 +17,62 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
   const [name, setName] = useState(file.name)
   const [isTyping, setIsTyping] = useState(false)
   const [description, setDescription] = useState(file.description)
+  const { setChatMessages, chatMessages, profile } = useContext(ChatbotUIContext)
+  const [analyzing, setAnalyzing] = useState(false)
 
   const getLinkAndView = async () => {
     const link = await getFileFromStorage(file.file_path)
     window.open(link, "_blank")
+  }
+
+  const handleAnalyzeFile = async () => {
+    setAnalyzing(true)
+    try {
+      // Fetch the file contents from storage
+      const link = await getFileFromStorage(file.file_path)
+      const response = await fetch(link)
+      const content = await response.text()
+      // Add file content to chat
+      setChatMessages([
+        ...chatMessages,
+        {
+          message: {
+            id: `file-analyze-${file.id}-${Date.now()}`,
+            role: "assistant",
+            content: content,
+            created_at: new Date().toISOString(),
+            sequence_number: chatMessages.length,
+            chat_id: "",
+            assistant_id: null,
+            user_id: profile?.user_id || "",
+            model: "",
+            image_paths: [],
+            updated_at: ""
+          },
+          fileItems: []
+        },
+        {
+          message: {
+            id: `file-analyze-followup-${file.id}-${Date.now()}`,
+            role: "assistant",
+            content: "Here is the file you're interested in. What would you like to talk about?",
+            created_at: new Date().toISOString(),
+            sequence_number: chatMessages.length + 1,
+            chat_id: "",
+            assistant_id: null,
+            user_id: profile?.user_id || "",
+            model: "",
+            image_paths: [],
+            updated_at: ""
+          },
+          fileItems: []
+        }
+      ])
+    } catch (e) {
+      // Optionally handle error
+    } finally {
+      setAnalyzing(false)
+    }
   }
 
   return (
@@ -66,6 +120,15 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
               maxLength={FILE_DESCRIPTION_MAX}
             />
           </div>
+
+          <Button
+            variant="default"
+            className="mt-2"
+            onClick={handleAnalyzeFile}
+            disabled={analyzing}
+          >
+            {analyzing ? "Analyzing..." : "Analyze File"}
+          </Button>
         </>
       )}
     />
