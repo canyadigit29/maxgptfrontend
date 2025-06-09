@@ -346,9 +346,30 @@ export const Message: FC<MessageProps> = ({
                 ) {
                   return <AgendaEnrichResults results={parsed.topics} />
                 }
-                // Render item history if type matches
-                if (parsed && parsed.type === "item_history" && parsed.history) {
-                  return <ItemHistoryResults topic={parsed.topic} history={parsed.history} />
+                // Render item history if type matches and has history/retrieved_chunks
+                if (parsed && parsed.type === "item_history" && parsed.history && parsed.retrieved_chunks) {
+                  return (
+                    <>
+                      {/* Chronological history summary */}
+                      <div className="mb-4">
+                        <div className="font-bold text-lg text-primary mb-2">History for: {parsed.topic}</div>
+                        {parsed.history.length === 0 ? (
+                          <div className="italic">No history found for this topic.</div>
+                        ) : (
+                          <ol className="space-y-2">
+                            {parsed.history.map((h, i) => (
+                              <li key={i} className="border rounded bg-secondary p-3">
+                                <div className="font-semibold">{h.file_name} <span className="text-xs text-gray-400">({h.date})</span></div>
+                                <div className="whitespace-pre-wrap mt-1">{h.summary}</div>
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                      </div>
+                      {/* Collapsible sources UI */}
+                      <AgendaEnrichResults results={[{ title: parsed.topic, summary: '', retrieved_chunks: parsed.retrieved_chunks }]} />
+                    </>
+                  );
                 }
               } catch (e) {
                 // Not JSON, fallback to markdown

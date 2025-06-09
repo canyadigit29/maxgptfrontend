@@ -103,14 +103,18 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
           throw new Error("Failed to fetch item history");
         }
         const data = await resp.json();
-        // Post the result as a chat message with a custom type for rendering
         setChatMessages(prev => [
           ...prev,
           {
             message: {
               id: `item-history-${Date.now()}-${Math.random()}`,
               role: "assistant",
-              content: JSON.stringify({ type: "item_history", topic: item.text, history: data.history }),
+              content: JSON.stringify({
+                type: "item_history",
+                topic: item.text,
+                history: data.history,
+                retrieved_chunks: data.retrieved_chunks
+              }),
               created_at: new Date().toISOString(),
               sequence_number: prev.length,
               chat_id: "",
