@@ -8,6 +8,7 @@ import { FC, useContext, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ChatbotUIContext } from "@/context/context"
 import { SidebarItem } from "../all/sidebar-display-item"
+import { useChatHandler } from "@/components/chat/chat-hooks/use-chat-handler"
 
 interface FileItemProps {
   file: Tables<"files">
@@ -22,7 +23,6 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
   const [checklist, setChecklist] = useState<Array<{ label: string; text: string }>>([])
   const [selectedItems, setSelectedItems] = useState<number[]>([])
   const [checklistError, setChecklistError] = useState<string | null>(null)
-  const [searchResults, setSearchResults] = useState<any[]>([])
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
 
@@ -78,38 +78,27 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
     // TODO: Trigger semantic search for selected items here
   }
 
+  // Use the chat handler to send each selected checklist item as a chat message
+  const { handleSendMessage } = useChatHandler();
+
   const handleSearchSelected = async () => {
-    setSearching(true)
-    setSearchError(null)
-    setSearchResults([])
+    setSearching(true);
+    setSearchError(null);
     try {
-      const selected = checklist.filter((_, idx) => selectedItems.includes(idx))
+      const selected = checklist.filter((_, idx) => selectedItems.includes(idx));
       if (selected.length === 0) {
-        setSearchError("Please select at least one item.")
-        setSearching(false)
-        return
+        setSearchError("Please select at least one item.");
+        setSearching(false);
+        return;
       }
-      // For each selected item, call the backend semantic search endpoint
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"
-      const results: any[] = []
       for (const item of selected) {
-        const resp = await fetch(`${backendUrl}/api/file_ops/search_docs`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: item.text, user_id: profile?.user_id })
-        })
-        if (!resp.ok) {
-          const err = await resp.text()
-          throw new Error(`Search failed: ${err}`)
-        }
-        const data = await resp.json()
-        results.push({ label: item.label, result: data })
+        // Send each checklist item as a chat message, triggering the normal semantic search/chat flow
+        await handleSendMessage(item.text, chatMessages, false);
       }
-      setSearchResults(results)
     } catch (e: any) {
-      setSearchError(e.message || "Unknown error during search.")
+      setSearchError(e.message || "Unknown error during search.");
     } finally {
-      setSearching(false)
+      setSearching(false);
     }
   }
 
@@ -186,7 +175,7 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
                     />
                     <div>
                       <div className="font-semibold">{item.label}</div>
-                      <div className="max-w-[400px] text-xs text-gray-400 truncate">{item.text}</div>
+                      <div className="text-xs text-gray-400 truncate max-w-[400px]">{item.text}</div>
                     </div>
                   </li>
                 ))}
@@ -201,21 +190,6 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
               </Button>
               {searchError && (
                 <div className="mt-2 text-red-500">{searchError}</div>
-              )}
-              {searchResults.length > 0 && (
-                <div className="mt-4">
-                  <div className="mb-2 font-bold">Search Results:</div>
-                  <ul className="space-y-4">
-                    {searchResults.map((res, idx) => (
-                      <li key={idx}>
-                        <div className="font-semibold">{res.label}</div>
-                        <pre className="bg-zinc-900 text-xs p-2 rounded whitespace-pre-wrap max-w-[600px] overflow-x-auto">
-                          {JSON.stringify(res.result, null, 2)}
-                        </pre>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
               )}
             </div>
           )}
