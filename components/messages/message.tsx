@@ -357,7 +357,7 @@ export const Message: FC<MessageProps> = ({
                           <div className="italic">No history found for this topic.</div>
                         ) : (
                           <ol className="space-y-2">
-                            {parsed.history.map((h, i) => (
+                            {parsed.history.map((h: any, i: number) => (
                               <li key={i} className="border rounded bg-secondary p-3">
                                 <div className="font-semibold">{h.file_name} <span className="text-xs text-gray-400">({h.date})</span></div>
                                 <div className="whitespace-pre-wrap mt-1">{h.summary}</div>
