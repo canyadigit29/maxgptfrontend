@@ -28,18 +28,29 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
   const handleAnalyzeFile = async () => {
     setAnalyzing(true)
     try {
-      // Fetch the file contents from storage
-      const link = await getFileFromStorage(file.file_path)
-      const response = await fetch(link)
-      const content = await response.text()
-      // Add file content to chat
+      let fileContent = ""
+      let fileName = file.name
+      if (file.type.includes("pdf")) {
+        // Call backend API to extract text from PDF
+        const apiUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"}/api/extract_text?file_path=${encodeURIComponent(file.file_path)}`
+        const response = await fetch(apiUrl)
+        if (!response.ok) throw new Error("Failed to extract PDF text")
+        const data = await response.json()
+        fileContent = data.text
+        fileName = data.file_name || fileName
+      } else {
+        // Fallback: fetch file as text
+        const link = await getFileFromStorage(file.file_path)
+        const response = await fetch(link)
+        fileContent = await response.text()
+      }
       setChatMessages([
         ...chatMessages,
         {
           message: {
             id: `file-analyze-${file.id}-${Date.now()}`,
             role: "assistant",
-            content: content,
+            content: `File: ${fileName}\n\n${fileContent}`,
             created_at: new Date().toISOString(),
             sequence_number: chatMessages.length,
             chat_id: "",
