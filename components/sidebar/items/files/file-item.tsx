@@ -92,6 +92,8 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
         return;
       }
       for (const item of selected) {
+        // Clean the topic header for chat display
+        const cleanedTopic = cleanHeader(item.label).toUpperCase() + ": " + item.text;
         // Call backend to get item history
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
         const resp = await fetch(`${backendUrl}/api/file_ops/item_history`, {
@@ -111,7 +113,7 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
               role: "assistant",
               content: JSON.stringify({
                 type: "item_history",
-                topic: item.text,
+                topic: cleanedTopic,
                 history: data.history,
                 retrieved_chunks: data.retrieved_chunks
               }),
@@ -133,6 +135,17 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
     } finally {
       setSearching(false);
     }
+  }
+
+  // Utility to clean up checklist item headers for display
+  const cleanHeader = (label: string) => {
+    // Remove "Action Items", "Old Business", and leading roman numerals/letters
+    return label
+      .replace(/^(I+\.?|[A-Z]\.?|\d+\.?)+\s*/i, "")
+      .replace(/Action Items\s*\d*\.?\s*/i, "")
+      .replace(/Old Business\s*/i, "")
+      .replace(/^[.\s]+/, "")
+      .trim();
   }
 
   return (
@@ -207,8 +220,8 @@ export const FileItem: FC<FileItemProps> = ({ file }) => {
                       className="mt-1"
                     />
                     <div>
-                      <div className="font-semibold">{item.label}</div>
-                      <div className="text-xs text-gray-400 max-w-[400px] truncate">{item.text}</div>
+                      <div className="font-semibold">{cleanHeader(item.label)}</div>
+                      <div className="max-w-[400px] truncate text-xs text-gray-400">{item.text}</div>
                     </div>
                   </li>
                 ))}
