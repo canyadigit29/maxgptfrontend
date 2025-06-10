@@ -215,6 +215,27 @@ export const useChatHandler = () => {
     chatMessages: ChatMessage[],
     isRegeneration: boolean
   ) => {
+    // Special command: run ingestion
+    if (messageContent.trim().toLowerCase() === "run ingestion") {
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        const response = await fetch(`${backendUrl}/run-ingestion`, {
+          method: "POST"
+        });
+        if (response.ok) {
+          toast.success("Ingestion triggered on backend.");
+        } else {
+          toast.error("Failed to trigger ingestion on backend.");
+        }
+      } catch (e) {
+        toast.error("Error triggering ingestion: " + (e as Error).message);
+      }
+      setUserInput("");
+      setIsGenerating(false);
+      setFirstTokenReceived(false);
+      return;
+    }
+
     let generatedText = ""; // Ensure generatedText is always declared before use
     const startingInput = messageContent
     try {
