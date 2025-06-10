@@ -34,20 +34,20 @@ RETURNS TABLE (
 BEGIN
   RETURN QUERY
   SELECT
-    id,
-    file_id,
-    content,
-    tokens,
-    1 - (openai_embedding <=> query_embedding) AS similarity,
-    1 - (openai_embedding <=> query_embedding) AS score
+    document_chunks.id,
+    document_chunks.file_id,
+    document_chunks.content,
+    document_chunks.tokens,
+    1 - (document_chunks.openai_embedding <=> query_embedding) AS similarity,
+    1 - (document_chunks.openai_embedding <=> query_embedding) AS score
   FROM document_chunks
-  WHERE (user_id_filter IS NULL OR user_id = user_id_filter)
-    AND (file_name_filter IS NULL OR file_name ILIKE file_name_filter)
-    AND (description_filter IS NULL OR description ILIKE description_filter)
-    AND (start_date IS NULL OR created_at >= start_date)
-    AND (end_date IS NULL OR created_at <= end_date)
-    AND (openai_embedding <=> query_embedding) >= match_threshold
-  ORDER BY openai_embedding <=> query_embedding
+  WHERE (user_id_filter IS NULL OR document_chunks.user_id = user_id_filter)
+    AND (file_name_filter IS NULL OR document_chunks.file_name ILIKE file_name_filter)
+    AND (description_filter IS NULL OR document_chunks.description ILIKE description_filter)
+    AND (start_date IS NULL OR document_chunks.created_at >= start_date)
+    AND (end_date IS NULL OR document_chunks.created_at <= end_date)
+    AND (document_chunks.openai_embedding <=> query_embedding) >= match_threshold
+  ORDER BY document_chunks.openai_embedding <=> query_embedding
   LIMIT match_count;
 END;
 $$ LANGUAGE plpgsql;
