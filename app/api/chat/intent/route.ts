@@ -5,7 +5,8 @@ import OpenAI from "openai";
 const AVAILABLE_FEATURES = [
   "general chat",
   "semantic search",
-  "follow-up"
+  "follow-up",
+  "run ingestion"
 ];
 
 const SYSTEM_PROMPT = `You are an intent classifier for a chat assistant. Classify the user's message as one of the following options: ${AVAILABLE_FEATURES.join(", ")}. Respond with only the label.`;
