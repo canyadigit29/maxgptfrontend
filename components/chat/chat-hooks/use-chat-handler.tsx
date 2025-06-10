@@ -219,7 +219,7 @@ export const useChatHandler = () => {
     if (messageContent.trim().toLowerCase() === "run ingestion") {
       try {
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-        const response = await fetch(`${backendUrl}/run-ingestion`, {
+        const response = await fetch(`${backendUrl}/api/run-ingestion`, {
           method: "POST"
         });
         if (response.ok) {
