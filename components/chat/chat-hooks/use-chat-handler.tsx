@@ -238,6 +238,48 @@ export const useChatHandler = () => {
       return;
     }
 
+    // Special command: run score test
+    if (messageContent.trim().toLowerCase() === "run score test") {
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        const response = await fetch(`${backendUrl}/api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: "run_score_test", user_id: profile?.user_id || "", chat_id: selectedChat?.id || selectedWorkspace?.id || "" })
+        });
+        if (response.ok) {
+          const result = await response.json();
+          setChatMessages(prev => [
+            ...prev,
+            {
+              message: {
+                id: `sys-score-test-result-${Date.now()}`,
+                role: "assistant",
+                content: result.recommendation || "Score test completed. No recommendation returned.",
+                created_at: new Date().toISOString(),
+                sequence_number: prev.length,
+                chat_id: selectedChat?.id || "",
+                assistant_id: null,
+                user_id: "",
+                model: chatSettings?.model || "",
+                image_paths: [],
+                updated_at: ""
+              },
+              fileItems: []
+            }
+          ]);
+        } else {
+          toast.error("Failed to run score test on backend.");
+        }
+      } catch (e) {
+        toast.error("Error running score test: " + (e as Error).message);
+      }
+      setUserInput("");
+      setIsGenerating(false);
+      setFirstTokenReceived(false);
+      return;
+    }
+
     let generatedText = ""; // Ensure generatedText is always declared before use
     const startingInput = messageContent
     try {
