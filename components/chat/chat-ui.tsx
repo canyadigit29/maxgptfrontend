@@ -184,14 +184,23 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     }
   }, [params.chatid, fetchMessages, fetchChat, handleFocusChatInput, scrollToBottom, setIsAtBottom])
 
-  // Always scroll to bottom when new messages arrive, unless user has scrolled up
+  // Always scroll to bottom when new messages arrive, unless user has scrolled up or is viewing history
   useEffect(() => {
-    // Only scroll if new messages were added and user is at bottom
-    if (chatMessages.length > prevMsgCountRef.current && isAtBottom) {
+    // Only scroll if new messages were added and user is at bottom,
+    // or if the last message is from the user (i.e., user just sent a message)
+    const prevCount = prevMsgCountRef.current
+    const newCount = chatMessages.length
+    const lastMsg = chatMessages[chatMessages.length - 1]?.message
+    const lastMsgFromUser = lastMsg?.role === "user"
+
+    if (
+      (newCount > prevCount && isAtBottom) ||
+      (newCount > prevCount && lastMsgFromUser)
+    ) {
       scrollToBottom()
     }
-    prevMsgCountRef.current = chatMessages.length
-  }, [chatMessages.length, isAtBottom, scrollToBottom])
+    prevMsgCountRef.current = newCount
+  }, [chatMessages.length, isAtBottom, scrollToBottom, chatMessages])
 
   if (loading) {
     return <Loading />
@@ -220,7 +229,7 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
       </div>
 
       <div
-        className="flex size-full flex-col overflow-auto border-b"
+        className="flex flex-1 flex-col overflow-auto border-b" // ensure flex-1 for scrollable area
         onScroll={handleScroll}
       >
         <div ref={messagesStartRef} />
