@@ -11,7 +11,7 @@ import { convertBlobToBase64 } from "@/lib/blob-to-b64"
 import useHotkey from "@/lib/hooks/use-hotkey"
 import { LLMID, MessageImage } from "@/types"
 import { useParams } from "next/navigation"
-import { FC, useContext, useEffect, useState, useRef } from "react"
+import { FC, useContext, useEffect, useState } from "react"
 import { ChatHelp } from "./chat-help"
 import { useScroll } from "./chat-hooks/use-scroll"
 import { ChatInput } from "./chat-input"
@@ -39,8 +39,7 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     setShowFilesDisplay,
     setUseRetrieval,
     setSelectedTools,
-    searchSummary,
-    chatMessages
+    searchSummary
   } = useContext(ChatbotUIContext)
 
   const { handleNewChat, handleFocusChatInput } = useChatHandler()
@@ -58,7 +57,6 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
   } = useScroll()
 
   const [loading, setLoading] = useState(true)
-  const prevMsgCountRef = useRef<number>(0)
 
   const fetchMessages = async () => {
     const fetchedMessages = await getMessagesByChatId(params.chatid as string)
@@ -184,24 +182,6 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     }
   }, [params.chatid, fetchMessages, fetchChat, handleFocusChatInput, scrollToBottom, setIsAtBottom])
 
-  // Always scroll to bottom when new messages arrive, unless user has scrolled up or is viewing history
-  useEffect(() => {
-    // Only scroll if new messages were added and user is at bottom,
-    // or if the last message is from the user (i.e., user just sent a message)
-    const prevCount = prevMsgCountRef.current
-    const newCount = chatMessages.length
-    const lastMsg = chatMessages[chatMessages.length - 1]?.message
-    const lastMsgFromUser = lastMsg?.role === "user"
-
-    if (
-      (newCount > prevCount && isAtBottom) ||
-      (newCount > prevCount && lastMsgFromUser)
-    ) {
-      scrollToBottom()
-    }
-    prevMsgCountRef.current = newCount
-  }, [chatMessages.length, isAtBottom, scrollToBottom, chatMessages])
-
   if (loading) {
     return <Loading />
   }
@@ -229,7 +209,7 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
       </div>
 
       <div
-        className="flex flex-1 flex-col overflow-auto border-b" // ensure flex-1 for scrollable area
+        className="flex size-full flex-col overflow-auto border-b"
         onScroll={handleScroll}
       >
         <div ref={messagesStartRef} />
