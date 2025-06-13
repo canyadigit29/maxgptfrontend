@@ -11,7 +11,7 @@ import { convertBlobToBase64 } from "@/lib/blob-to-b64"
 import useHotkey from "@/lib/hooks/use-hotkey"
 import { LLMID, MessageImage } from "@/types"
 import { useParams } from "next/navigation"
-import { FC, useContext, useEffect, useState } from "react"
+import { FC, useContext, useEffect, useRef, useCallback, useState } from "react"
 import { ChatHelp } from "./chat-help"
 import { useScroll } from "./chat-hooks/use-scroll"
 import { ChatInput } from "./chat-input"
@@ -39,7 +39,8 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     setShowFilesDisplay,
     setUseRetrieval,
     setSelectedTools,
-    searchSummary
+    searchSummary,
+    chatMessages
   } = useContext(ChatbotUIContext)
 
   const { handleNewChat, handleFocusChatInput } = useChatHandler()
@@ -57,6 +58,8 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
   } = useScroll()
 
   const [loading, setLoading] = useState(true)
+  const lastMessageRef = useRef<HTMLDivElement>(null)
+  const prevMsgCountRef = useRef(0)
 
   const fetchMessages = async () => {
     const fetchedMessages = await getMessagesByChatId(params.chatid as string)
@@ -163,12 +166,18 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     })
   }
 
+  const scrollToLastMessage = useCallback(() => {
+    if (lastMessageRef.current) {
+      lastMessageRef.current.scrollIntoView({ behavior: "instant" })
+    }
+  }, [])
+
   useEffect(() => {
     const fetchData = async () => {
       await fetchMessages()
       await fetchChat()
 
-      scrollToBottom()
+      scrollToLastMessage()
       setIsAtBottom(true)
     }
 
@@ -180,7 +189,25 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     } else {
       setLoading(false)
     }
-  }, [params.chatid, fetchMessages, fetchChat, handleFocusChatInput, scrollToBottom, setIsAtBottom])
+  }, [params.chatid, fetchMessages, fetchChat, handleFocusChatInput, scrollToLastMessage, setIsAtBottom])
+
+  // Always scroll to last message when new messages arrive, unless user has scrolled up or is viewing history
+  useEffect(() => {
+    // Only scroll if new messages were added and user is at bottom,
+    // or if the last message is from the user (i.e., user just sent a message)
+    const prevCount = prevMsgCountRef.current
+    const newCount = chatMessages.length
+    const lastMsg = chatMessages[chatMessages.length - 1]?.message
+    const lastMsgFromUser = lastMsg?.role === "user"
+
+    if (
+      (newCount > prevCount && isAtBottom) ||
+      (newCount > prevCount && lastMsgFromUser)
+    ) {
+      scrollToLastMessage()
+    }
+    prevMsgCountRef.current = newCount
+  }, [chatMessages, isAtBottom, scrollToLastMessage])
 
   if (loading) {
     return <Loading />
@@ -214,7 +241,7 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
       >
         <div ref={messagesStartRef} />
 
-        <ChatMessages />
+        <ChatMessages lastMessageRef={lastMessageRef} />
 
         <div ref={messagesEndRef} />
       </div>
