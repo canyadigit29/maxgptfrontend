@@ -23,6 +23,7 @@ import {
   validateChatSettings
 } from "../chat-helpers"
 import { toast } from "sonner"
+import Fuse from "fuse.js"
 
 export const useChatHandler = () => {
   const router = useRouter()
@@ -444,9 +445,13 @@ export const useChatHandler = () => {
 
       // --- FILE RETRIEVAL INTENT LOGIC ---
       if (intent === "file retrieval") {
-        // Fuzzy match files by name using the user's message
-        const query = messageContent.toLowerCase();
-        const matchingFiles = (files ?? []).filter((file: { name: string }) => file.name && file.name.toLowerCase().includes(query));
+        // Use Fuse.js for fuzzy file name and description matching
+        const fuse = new Fuse(files ?? [], {
+          keys: ["name", "description"],
+          threshold: 0.4, // Adjust for strictness (0 = exact, 1 = loose)
+        });
+        const results = fuse.search(messageContent);
+        const matchingFiles = results.map(r => r.item);
         if (matchingFiles.length > 0) {
           setChatFiles(matchingFiles.map((file: { id: string; name: string; type: string }) => ({
             id: file.id,
