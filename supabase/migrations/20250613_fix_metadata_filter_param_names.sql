@@ -9,12 +9,12 @@ CREATE OR REPLACE FUNCTION public.match_documents(
   description_filter text DEFAULT NULL,
   start_date timestamp without time zone DEFAULT NULL,
   end_date timestamp without time zone DEFAULT NULL,
-  meeting_year_filter integer DEFAULT NULL,
-  meeting_month_filter integer DEFAULT NULL,
-  meeting_month_name_filter text DEFAULT NULL,
-  meeting_day_filter integer DEFAULT NULL,
-  document_type_filter text DEFAULT NULL,
-  ordinance_title_filter text DEFAULT NULL,
+  filter_meeting_year integer DEFAULT NULL,
+  filter_meeting_month integer DEFAULT NULL,
+  filter_meeting_month_name text DEFAULT NULL,
+  filter_meeting_day integer DEFAULT NULL,
+  filter_document_type text DEFAULT NULL,
+  filter_ordinance_title text DEFAULT NULL,
   match_threshold double precision DEFAULT 0.3,
   match_count integer DEFAULT 20
 )
@@ -65,12 +65,12 @@ BEGIN
     AND (description_filter IS NULL OR document_chunks.description ILIKE description_filter)
     AND (start_date IS NULL OR document_chunks.created_at >= start_date)
     AND (end_date IS NULL OR document_chunks.created_at <= end_date)
-    AND (meeting_year_filter IS NULL OR document_chunks.meeting_year = meeting_year_filter)
-    AND (meeting_month_filter IS NULL OR document_chunks.meeting_month = meeting_month_filter)
-    AND (meeting_month_name_filter IS NULL OR document_chunks.meeting_month_name ILIKE meeting_month_name_filter)
-    AND (meeting_day_filter IS NULL OR document_chunks.meeting_day = meeting_day_filter)
-    AND (document_type_filter IS NULL OR document_chunks.document_type ILIKE document_type_filter)
-    AND (ordinance_title_filter IS NULL OR document_chunks.ordinance_title ILIKE ordinance_title_filter)
+    AND (filter_meeting_year IS NULL OR document_chunks.meeting_year = filter_meeting_year)
+    AND (filter_meeting_month IS NULL OR document_chunks.meeting_month = filter_meeting_month)
+    AND (filter_meeting_month_name IS NULL OR document_chunks.meeting_month_name ILIKE filter_meeting_month_name)
+    AND (filter_meeting_day IS NULL OR document_chunks.meeting_day = filter_meeting_day)
+    AND (filter_document_type IS NULL OR document_chunks.document_type ILIKE filter_document_type)
+    AND (filter_ordinance_title IS NULL OR document_chunks.ordinance_title ILIKE filter_ordinance_title)
     AND (document_chunks.openai_embedding <=> query_embedding) >= match_threshold
   ORDER BY document_chunks.openai_embedding <=> query_embedding
   LIMIT match_count;
