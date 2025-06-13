@@ -69,7 +69,8 @@ export const useChatHandler = () => {
     isPromptPickerOpen,
     isFilePickerOpen,
     isToolPickerOpen,
-    setSearchSummary
+    setSearchSummary,
+    files // Destructure files from context
   } = useContext(ChatbotUIContext)
 
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
@@ -439,6 +440,64 @@ export const useChatHandler = () => {
         setFirstTokenReceived(false)
         console.debug("[chat] handleSendMessage completed (follow-up)")
         return
+      }
+
+      // --- FILE RETRIEVAL INTENT LOGIC ---
+      if (intent === "file retrieval") {
+        // Fuzzy match files by name using the user's message
+        const query = messageContent.toLowerCase();
+        const matchingFiles = (files ?? []).filter((file: { name: string }) => file.name && file.name.toLowerCase().includes(query));
+        if (matchingFiles.length > 0) {
+          setChatFiles(matchingFiles.map((file: { id: string; name: string; type: string }) => ({
+            id: file.id,
+            name: file.name,
+            type: file.type,
+            file: null
+          })));
+          setShowFilesDisplay(true);
+          setChatMessages(prev => ([
+            ...prev,
+            {
+              message: {
+                id: `sys-file-retrieval-${Date.now()}`,
+                role: "assistant",
+                content: `Here are the files matching your request:`,
+                created_at: new Date().toISOString(),
+                sequence_number: prev.length,
+                chat_id: selectedChat?.id || "",
+                assistant_id: null,
+                user_id: "",
+                model: chatSettings?.model || "",
+                image_paths: [],
+                updated_at: ""
+              },
+              fileItems: []
+            }
+          ]));
+        } else {
+          setChatMessages(prev => ([
+            ...prev,
+            {
+              message: {
+                id: `sys-file-retrieval-none-${Date.now()}`,
+                role: "assistant",
+                content: `No files found matching your request.`,
+                created_at: new Date().toISOString(),
+                sequence_number: prev.length,
+                chat_id: selectedChat?.id || "",
+                assistant_id: null,
+                user_id: "",
+                model: chatSettings?.model || "",
+                image_paths: [],
+                updated_at: ""
+              },
+              fileItems: []
+            }
+          ]));
+        }
+        setIsGenerating(false);
+        setFirstTokenReceived(false);
+        return;
       }
 
       // For general chat, ensure the LLM gets a ChatGPT-style system prompt

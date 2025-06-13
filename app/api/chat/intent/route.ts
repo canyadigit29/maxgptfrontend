@@ -6,7 +6,8 @@ const AVAILABLE_FEATURES = [
   "general chat",
   "semantic search",
   "follow-up",
-  "run ingestion"
+  "run ingestion",
+  "file retrieval" // NEW: Add file retrieval intent
 ];
 
 const SYSTEM_PROMPT = `You are an intent classifier for a chat assistant. Classify the user's message as one of the following options: ${AVAILABLE_FEATURES.join(", ")}. Respond with only the label.`;
