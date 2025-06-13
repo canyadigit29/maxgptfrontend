@@ -11,7 +11,7 @@ import { convertBlobToBase64 } from "@/lib/blob-to-b64"
 import useHotkey from "@/lib/hooks/use-hotkey"
 import { LLMID, MessageImage } from "@/types"
 import { useParams } from "next/navigation"
-import { FC, useContext, useEffect, useState } from "react"
+import { FC, useContext, useEffect, useState, useRef } from "react"
 import { ChatHelp } from "./chat-help"
 import { useScroll } from "./chat-hooks/use-scroll"
 import { ChatInput } from "./chat-input"
@@ -39,7 +39,8 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     setShowFilesDisplay,
     setUseRetrieval,
     setSelectedTools,
-    searchSummary
+    searchSummary,
+    chatMessages
   } = useContext(ChatbotUIContext)
 
   const { handleNewChat, handleFocusChatInput } = useChatHandler()
@@ -57,6 +58,7 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
   } = useScroll()
 
   const [loading, setLoading] = useState(true)
+  const prevMsgCountRef = useRef<number>(0)
 
   const fetchMessages = async () => {
     const fetchedMessages = await getMessagesByChatId(params.chatid as string)
@@ -181,6 +183,15 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
       setLoading(false)
     }
   }, [params.chatid, fetchMessages, fetchChat, handleFocusChatInput, scrollToBottom, setIsAtBottom])
+
+  // Always scroll to bottom when new messages arrive, unless user has scrolled up
+  useEffect(() => {
+    // Only scroll if new messages were added and user is at bottom
+    if (chatMessages.length > prevMsgCountRef.current && isAtBottom) {
+      scrollToBottom()
+    }
+    prevMsgCountRef.current = chatMessages.length
+  }, [chatMessages.length, isAtBottom, scrollToBottom])
 
   if (loading) {
     return <Loading />
