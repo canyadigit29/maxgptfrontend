@@ -445,12 +445,27 @@ export const useChatHandler = () => {
 
       // --- FILE RETRIEVAL INTENT LOGIC ---
       if (intent === "file retrieval") {
-        // Use Fuse.js for fuzzy file name and description matching
-        const fuse = new Fuse(files ?? [], {
-          keys: ["name", "description"],
-          threshold: 0.4, // Adjust for strictness (0 = exact, 1 = loose)
+        // Preprocess files to add nameNoExt (name without extension) and lowercase fields
+        const filesWithNoExt = (files ?? []).map(file => {
+          const extIndex = file.name.lastIndexOf(".");
+          const nameNoExt = extIndex > 0 ? file.name.substring(0, extIndex) : file.name;
+          return {
+            ...file,
+            name: file.name.toLowerCase(),
+            nameNoExt: nameNoExt.toLowerCase(),
+            description: (file.description || "").toLowerCase()
+          };
         });
-        const results = fuse.search(messageContent);
+        // Lowercase the search query
+        const searchQuery = messageContent.toLowerCase();
+        // Use Fuse.js for fuzzy file name and description matching, including nameNoExt
+        const fuse = new Fuse(filesWithNoExt, {
+          keys: ["name", "nameNoExt", "description"],
+          threshold: 0.5, // Looser matching
+          ignoreLocation: true,
+          ignoreFieldNorm: true
+        });
+        const results = fuse.search(searchQuery);
         const matchingFiles = results.map(r => r.item);
         if (matchingFiles.length > 0) {
           setChatFiles(matchingFiles.map((file: { id: string; name: string; type: string }) => ({
