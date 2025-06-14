@@ -193,25 +193,6 @@ export const useChatHandler = () => {
     }
   }
 
-  // Helper to classify user intent using the LLM intent endpoint
-  async function detectIntent(messageContent: string, previousSummary?: string): Promise<string> {
-    try {
-      const response = await fetch("/api/chat/intent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: messageContent, previousSummary })
-      })
-      const data = await response.json()
-      return data.intent || "general chat"
-    } catch (e) {
-      return "general chat"
-    }
-  }
-
-  // Add state for last search summary and chunks
-  const [lastSearchSummary, setLastSearchSummary] = useState<string | null>(null)
-  const [lastSearchChunks, setLastSearchChunks] = useState<any[]>([])
-
   const handleSendMessage = async (
     messageContent: string,
     chatMessages: ChatMessage[],
@@ -267,7 +248,7 @@ export const useChatHandler = () => {
               },
               fileItems: []
             }
-          ]);
+          );
         } else {
           toast.error("Failed to run score test on backend.");
         }
@@ -279,21 +260,16 @@ export const useChatHandler = () => {
       setFirstTokenReceived(false);
       return;
     }
-
-    let generatedText = ""; // Ensure generatedText is always declared before use
-    const startingInput = messageContent
+    let generatedText = "";
+    const startingInput = messageContent;
     try {
-      // Debug: log the incoming message
-      console.debug("[chat] handleSendMessage called", { messageContent, isRegeneration })
-      setUserInput("")
-      setIsGenerating(true)
-      setIsPromptPickerOpen(false)
-      setIsFilePickerOpen(false)
-      setNewMessageImages([])
-      const newAbortController = new AbortController()
-      setAbortController(newAbortController)
-
-      // Move modelData declaration to the top so it is available for all branches
+      setUserInput("");
+      setIsGenerating(true);
+      setIsPromptPickerOpen(false);
+      setIsFilePickerOpen(false);
+      setNewMessageImages([]);
+      const newAbortController = new AbortController();
+      setAbortController(newAbortController);
       let modelData = [
         ...models.map((model: any) => ({
           modelId: model.model_id as LLMID,
@@ -306,362 +282,17 @@ export const useChatHandler = () => {
         ...LLM_LIST,
         ...availableLocalModels,
         ...availableOpenRouterModels
-      ].find((llm: any) => llm.modelId === chatSettings?.model)
-
-      // INTENT DETECTION: Use LLM to classify the user's intent
-      const intent = await detectIntent(messageContent, lastSearchSummary || undefined)
-      console.debug("[intent] classified as:", intent)
-
-      // Route based on intent
-      if (intent === "semantic search") {
-        // Call backend_search /chat endpoint for semantic search
-        const backendSearchResults = await handleBackendSearch(
-          messageContent,
-          profile?.user_id || "",
-          selectedChat?.id || selectedWorkspace?.id || ""
-        )
-        setSearchSummary?.(backendSearchResults.summary)
-        setLastSearchSummary(backendSearchResults.summary)
-        setLastSearchChunks(backendSearchResults.retrieved_chunks || [])
-        console.log('[DEBUG] backendSearchResults.retrieved_chunks.length:', backendSearchResults.retrieved_chunks?.length)
-        const retrievedFileItems = backendSearchResults.retrieved_chunks.slice(0, 500)
-        console.log('[DEBUG] retrievedFileItems.length:', retrievedFileItems.length)
-        const generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]"
-
-        // Always create or update chat and messages, so context is preserved
-        let currentChat = selectedChat ? { ...selectedChat } : null
-
-        if (!currentChat) {
-          currentChat = await handleCreateChat(
-            chatSettings!,
-            profile!,
-            selectedWorkspace!,
-            messageContent,
-            selectedAssistant!,
-            newMessageFiles,
-            setSelectedChat,
-            setChats,
-            setChatFiles
-          )
-        } else {
-          const updatedChat = await updateChat(currentChat.id, {
-            updated_at: new Date().toISOString()
-          })
-          setChats((prevChats: any) => {
-            const updatedChats = prevChats.map((prevChat: any) =>
-              prevChat.id === updatedChat.id ? updatedChat : prevChat
-            )
-            return updatedChats
-          })
-        }
-        await handleCreateMessages(
-          chatMessages,
-          currentChat,
-          profile!,
-          modelData!,
-          messageContent,
-          generatedText,
-          newMessageImages,
-          isRegeneration,
-          retrievedFileItems,
-          setChatMessages,
-          setChatFileItems,
-          setChatImages,
-          selectedAssistant
-          // searchId argument removed to match handleCreateMessages signature
-        )
-        setIsGenerating(false)
-        setFirstTokenReceived(false)
-        console.debug("[chat] handleSendMessage completed")
-        return
-      }
-
-      // --- FOLLOW-UP DETECTION LOGIC ---
-      if (intent === "follow-up" && lastSearchChunks.length > 0) {
-        // Build a system prompt with both summary and chunks
-        const chunksText = lastSearchChunks.map(chunk => chunk.content).join("\n\n")
-        const followupPrompt = `You are an assistant. Answer the user's question using only the following previous search results and content chunks. Do not use outside knowledge.\n\nSummary:\n${lastSearchSummary}\n\nChunks:\n${chunksText}`
-        const chatSettingsWithFollowupPrompt = {
-          ...chatSettings!,
-          prompt: followupPrompt
-        }
-        let payload: ChatPayload = {
-          chatSettings: chatSettingsWithFollowupPrompt,
-          workspaceInstructions: selectedWorkspace!.instructions || "",
-          chatMessages: isRegeneration ? [...chatMessages] : [...chatMessages],
-          assistant: selectedChat?.assistant_id ? selectedAssistant : null,
-          messageFileItems: [],
-          chatFileItems: []
-        }
-        let tempAssistantChatMessage: ChatMessage = {
-          message: {
-            id: "temp-assistant-message",
-            chat_id: selectedChat?.id || "",
-            user_id: profile?.user_id || "",
-            assistant_id: selectedAssistant?.id || null,
-            role: "assistant",
-            content: "",
-            model: chatSettings?.model || "",
-            sequence_number: chatMessages.length + 1,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            image_paths: []
-          },
-          fileItems: []
-        }
-        // Use the normal LLM call with the followup prompt
-        if (modelData!.provider === "ollama") {
-          generatedText = await handleLocalChat(
-            payload,
-            profile!,
-            chatSettings!,
-            tempAssistantChatMessage,
-            isRegeneration,
-            newAbortController,
-            setIsGenerating,
-            setFirstTokenReceived,
-            setChatMessages,
-            setToolInUse
-          )
-        } else {
-          generatedText = await handleHostedChat(
-            payload,
-            profile!,
-            modelData!,
-            tempAssistantChatMessage,
-            isRegeneration,
-            newAbortController,
-            newMessageImages,
-            chatImages,
-            setIsGenerating,
-            setFirstTokenReceived,
-            setChatMessages,
-            setToolInUse
-          )
-        }
-        // Save the message as usual
-        let currentChat = selectedChat ? { ...selectedChat } : null
-        if (!currentChat) {
-          currentChat = await handleCreateChat(
-            chatSettings!,
-            profile!,
-            selectedWorkspace!,
-            messageContent,
-            selectedAssistant!,
-            newMessageFiles,
-            setSelectedChat,
-            setChats,
-            setChatFiles
-          )
-        } else {
-          const updatedChat = await updateChat(currentChat.id, {
-            updated_at: new Date().toISOString()
-          })
-          setChats((prevChats: any) => {
-            const updatedChats = prevChats.map((prevChat: any) =>
-              prevChat.id === updatedChat.id ? updatedChat : prevChat
-            )
-            return updatedChats
-          })
-        }
-        await handleCreateMessages(
-          chatMessages,
-          currentChat,
-          profile!,
-          modelData!,
-          messageContent,
-          generatedText,
-          newMessageImages,
-          isRegeneration,
-          [], // No new retrievedChunks for follow-up
-          setChatMessages,
-          setChatFileItems,
-          setChatImages,
-          selectedAssistant
-        )
-        setIsGenerating(false)
-        setFirstTokenReceived(false)
-        console.debug("[chat] handleSendMessage completed (follow-up)")
-        return
-      }
-
-      // --- FILE RETRIEVAL INTENT LOGIC ---
-      if (intent === "file retrieval") {
-        // Preprocess files to add nameNoExt (name without extension) and lowercase fields
-        const filesWithNoExt = (files ?? []).map(file => {
-          const extIndex = file.name.lastIndexOf(".");
-          const nameNoExt = extIndex > 0 ? file.name.substring(0, extIndex) : file.name;
-          return {
-            ...file,
-            name: file.name.toLowerCase(),
-            nameNoExt: nameNoExt.toLowerCase(),
-            description: (file.description || "").toLowerCase()
-          };
-        });
-        // Lowercase the search query
-        const searchQuery = messageContent.toLowerCase();
-        // Use Fuse.js for fuzzy file name and description matching, including nameNoExt
-        const fuse = new Fuse(filesWithNoExt, {
-          keys: ["name", "nameNoExt", "description"],
-          threshold: 0.5, // Looser matching
-          ignoreLocation: true,
-          ignoreFieldNorm: true
-        });
-        const results = fuse.search(searchQuery);
-        const matchingFiles = results.map(r => r.item);
-        if (matchingFiles.length > 0) {
-          setChatFiles(matchingFiles.map((file: { id: string; name: string; type: string }) => ({
-            id: file.id,
-            name: file.name,
-            type: file.type,
-            file: null
-          })));
-          setShowFilesDisplay(true);
-          setChatMessages(prev => ([
-            ...prev,
-            {
-              message: {
-                id: `sys-file-retrieval-${Date.now()}`,
-                role: "assistant",
-                content: `Here are the files matching your request:`,
-                created_at: new Date().toISOString(),
-                sequence_number: prev.length,
-                chat_id: selectedChat?.id || "",
-                assistant_id: null,
-                user_id: "",
-                model: chatSettings?.model || "",
-                image_paths: [],
-                updated_at: ""
-              },
-              fileItems: []
-            }
-          ]));
-        } else {
-          setChatMessages(prev => ([
-            ...prev,
-            {
-              message: {
-                id: `sys-file-retrieval-none-${Date.now()}`,
-                role: "assistant",
-                content: `No files found matching your request.`,
-                created_at: new Date().toISOString(),
-                sequence_number: prev.length,
-                chat_id: selectedChat?.id || "",
-                assistant_id: null,
-                user_id: "",
-                model: chatSettings?.model || "",
-                image_paths: [],
-                updated_at: ""
-              },
-              fileItems: []
-            }
-          ]));
-        }
-        setIsGenerating(false);
-        setFirstTokenReceived(false);
-        return;
-      }
-
-      // For general chat, ensure the LLM gets a ChatGPT-style system prompt
-      // Add/override the prompt in chatSettings
-      const chatSettingsWithSystemPrompt = {
-        ...chatSettings!,
-        prompt: chatSettings?.prompt || "You are a helpful AI assistant. Answer the user's questions conversationally and helpfully, just like ChatGPT."
-      }
-      let payload: ChatPayload = {
-        chatSettings: chatSettingsWithSystemPrompt,
-        workspaceInstructions: selectedWorkspace!.instructions || "",
-        chatMessages: isRegeneration ? [...chatMessages] : [...chatMessages],
-        assistant: selectedChat?.assistant_id ? selectedAssistant : null,
-        messageFileItems: [],
-        chatFileItems: []
-      }
-      let tempAssistantChatMessage: ChatMessage = {
-        message: {
-          id: "temp-assistant-message",
-          chat_id: selectedChat?.id || "",
-          user_id: profile?.user_id || "",
-          assistant_id: selectedAssistant?.id || null,
-          role: "assistant",
-          content: "",
-          model: chatSettings?.model || "",
-          sequence_number: chatMessages.length + 1,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          image_paths: []
-        },
-        fileItems: []
-      }
-
-      // Move b64Images declaration above its first use
-      const b64Images = newMessageImages.map((image: any) => image.base64)
-
-      // Removed the old isRunSearch block and related variables
-      // (No longer needed, intent detection now handles semantic search)
-      if (selectedTools.length > 0) {
-        setToolInUse("Tools")
-        const formattedMessages = await buildFinalMessages(
-          payload,
-          profile!,
-          chatImages
-        )
-        const response = await fetch("/api/chat/tools", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            chatSettings: payload.chatSettings,
-            messages: formattedMessages,
-            selectedTools
-          })
-        })
-        setToolInUse("none")
-        generatedText = await processResponse(
-          response,
-          isRegeneration
-            ? payload.chatMessages[payload.chatMessages.length - 1]
-            : tempAssistantChatMessage,
-          true,
-          newAbortController,
-          setFirstTokenReceived,
-          setChatMessages,
-          setToolInUse
-        )
-      } else if (modelData!.provider === "ollama") {
-        generatedText = await handleLocalChat(
-          payload,
-          profile!,
-          chatSettings!,
-          tempAssistantChatMessage,
-          isRegeneration,
-          newAbortController,
-          setIsGenerating,
-          setFirstTokenReceived,
-          setChatMessages,
-          setToolInUse
-        )
-      } else {
-        generatedText = await handleHostedChat(
-          payload,
-          profile!,
-          modelData!,
-          tempAssistantChatMessage,
-          isRegeneration,
-          newAbortController,
-          newMessageImages,
-          chatImages,
-          setIsGenerating,
-          setFirstTokenReceived,
-          setChatMessages,
-          setToolInUse
-        )
-      }
-
-      // For 'run search', skip embedding and modelData logic, but still create temp messages and continue pipeline
-      let currentChat = selectedChat ? { ...selectedChat } : null
-
-      // Always create or update chat and messages, so context is preserved
+      ].find((llm: any) => llm.modelId === chatSettings?.model);
+      // --- All prompts now go directly to backend search/chat endpoint ---
+      const backendSearchResults = await handleBackendSearch(
+        messageContent,
+        profile?.user_id || "",
+        selectedChat?.id || selectedWorkspace?.id || ""
+      );
+      setSearchSummary?.(backendSearchResults.summary);
+      const retrievedFileItems = backendSearchResults.retrieved_chunks?.slice(0, 500) || [];
+      const generatedText = backendSearchResults.summary?.trim() || "[No summary available. Results injected, ready for follow-up questions.]";
+      let currentChat = selectedChat ? { ...selectedChat } : null;
       if (!currentChat) {
         currentChat = await handleCreateChat(
           chatSettings!,
@@ -673,17 +304,17 @@ export const useChatHandler = () => {
           setSelectedChat,
           setChats,
           setChatFiles
-        )
+        );
       } else {
         const updatedChat = await updateChat(currentChat.id, {
           updated_at: new Date().toISOString()
-        })
+        });
         setChats((prevChats: any) => {
           const updatedChats = prevChats.map((prevChat: any) =>
             prevChat.id === updatedChat.id ? updatedChat : prevChat
-          )
-          return updatedChats
-        })
+          );
+          return updatedChats;
+        });
       }
       await handleCreateMessages(
         chatMessages,
@@ -694,20 +325,19 @@ export const useChatHandler = () => {
         generatedText,
         newMessageImages,
         isRegeneration,
-        [], // No retrievedChunks for general chat
+        retrievedFileItems,
         setChatMessages,
         setChatFileItems,
         setChatImages,
         selectedAssistant
-        // searchId argument removed to match handleCreateMessages signature
-      )
-      setIsGenerating(false)
-      setFirstTokenReceived(false)
-      console.debug("[chat] handleSendMessage completed")
+      );
+      setIsGenerating(false);
+      setFirstTokenReceived(false);
+      console.debug("[chat] handleSendMessage completed");
     } catch (error) {
-      setIsGenerating(false)
-      setFirstTokenReceived(false)
-      setUserInput(startingInput)
+      setIsGenerating(false);
+      setFirstTokenReceived(false);
+      setUserInput(startingInput);
     }
   }
 
