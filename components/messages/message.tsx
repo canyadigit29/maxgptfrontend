@@ -386,7 +386,7 @@ export const Message: FC<MessageProps> = ({
                         <div className="mt-2">
                           <div className="font-semibold">Citations:</div>
                           <ul className="list-disc ml-6">
-                            {structured.structured_answer.citations.map((c, i) => (
+                            {structured.structured_answer.citations.map((c: any, i: number) => (
                               <li key={i} className="text-xs">
                                 {c.file_name && <span>File: <b>{c.file_name}</b></span>} {c.section_header && <span> | Section: {c.section_header}</span>} {c.meeting_date && <span> | Date: {c.meeting_date}</span>}
                               </li>
