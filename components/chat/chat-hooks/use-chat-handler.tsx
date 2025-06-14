@@ -230,7 +230,7 @@ export const useChatHandler = () => {
         });
         if (response.ok) {
           const result = await response.json();
-          setChatMessages(prev => ([
+          setChatMessages(prev => [
             ...prev,
             {
               message: {
@@ -248,7 +248,7 @@ export const useChatHandler = () => {
               },
               fileItems: []
             }
-          ));
+          ]);
         } else {
           toast.error("Failed to run score test on backend.");
         }
