@@ -374,6 +374,30 @@ export const Message: FC<MessageProps> = ({
               } catch (e) {
                 // Not JSON, fallback to markdown
               }
+              // --- Structured Answer (RAG citations) ---
+              try {
+                const structured = JSON.parse(message.content)
+                if (structured && structured.structured_answer && structured.structured_answer.answer) {
+                  return (
+                    <div className="border border-primary rounded p-4 bg-secondary mt-2">
+                      <div className="font-bold mb-2">AI Answer</div>
+                      <div className="whitespace-pre-wrap mb-2">{structured.structured_answer.answer}</div>
+                      {structured.structured_answer.citations && structured.structured_answer.citations.length > 0 && (
+                        <div className="mt-2">
+                          <div className="font-semibold">Citations:</div>
+                          <ul className="list-disc ml-6">
+                            {structured.structured_answer.citations.map((c, i) => (
+                              <li key={i} className="text-xs">
+                                {c.file_name && <span>File: <b>{c.file_name}</b></span>} {c.section_header && <span> | Section: {c.section_header}</span>} {c.meeting_date && <span> | Date: {c.meeting_date}</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+              } catch (e) { /* not a structured answer */ }
               return <MessageMarkdown content={message.content} />
             })()
           )}
