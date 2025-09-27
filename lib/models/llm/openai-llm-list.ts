@@ -3,6 +3,22 @@ import { LLM } from "@/types"
 const OPENAI_PLATORM_LINK = "https://platform.openai.com/docs/overview"
 
 // OpenAI Models (UPDATED 1/25/24) -----------------------------
+// GPT-5 (NEW)
+const GPT5: LLM = {
+  modelId: "gpt-5",
+  modelName: "GPT-5",
+  provider: "openai",
+  hostedId: "gpt-5",
+  platformLink: OPENAI_PLATORM_LINK,
+  imageInput: true,
+  pricing: {
+    currency: "USD",
+    unit: "1M tokens",
+    inputCost: 10,
+    outputCost: 30
+  }
+}
+
 const GPT4o: LLM = {
   modelId: "gpt-4o",
   modelName: "GPT-4o",
@@ -82,6 +98,7 @@ const GPT3_5Turbo: LLM = {
 }
 
 export const OPENAI_LLM_LIST: LLM[] = [
+  GPT5,
   GPT4o,
   GPT4Turbo,
   GPT4Vision,
