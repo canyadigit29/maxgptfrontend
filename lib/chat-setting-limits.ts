@@ -126,6 +126,12 @@ export const CHAT_SETTING_LIMITS: Record<LLMID, ChatSettingLimits> = {
   },
 
   // OPENAI MODELS
+  "gpt-5": {
+    MIN_TEMPERATURE: 0.0,
+    MAX_TEMPERATURE: 2.0,
+    MAX_TOKEN_OUTPUT_LENGTH: 8192,
+    MAX_CONTEXT_LENGTH: 200000
+  },
   "gpt-3.5-turbo": {
     MIN_TEMPERATURE: 0.0,
     MAX_TEMPERATURE: 2.0,
